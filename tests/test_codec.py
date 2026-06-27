@@ -1,0 +1,41 @@
+import numpy as np
+
+from hyperglyph import HyperGlyphCodec, HyperGlyphConfig
+
+
+def test_compress_and_decompress_numpy_array() -> None:
+    config = HyperGlyphConfig(block_size=8, n_prototypes=4, residual_k=2, min_tensor_size=4)
+    codec = HyperGlyphCodec(config)
+    data = np.arange(64, dtype=np.float32).reshape(8, 8)
+    compressed = codec.compress_array("weight", data)
+    restored = codec.decompress_array(compressed)
+    assert restored.shape == data.shape
+
+
+def test_report_returns_valid_compression_fields() -> None:
+    config = HyperGlyphConfig(block_size=8, n_prototypes=4, residual_k=2, min_tensor_size=4)
+    codec = HyperGlyphCodec(config)
+    data = np.arange(64, dtype=np.float32).reshape(8, 8)
+    compressed = codec.compress_array("weight", data)
+    restored = codec.decompress_array(compressed)
+    report = codec.report(
+        CompressedModelWrapper(compressed), {"weight": data}, {"weight": restored}
+    )
+    assert report.tensors_compressed == 1
+
+
+def test_small_tensors_are_skipped_when_below_threshold() -> None:
+    config = HyperGlyphConfig(min_tensor_size=1000)
+    codec = HyperGlyphCodec(config)
+    data = np.arange(16, dtype=np.float32)
+    try:
+        codec.compress_array("weight", data)
+    except ValueError as exc:
+        assert "too small" in str(exc)
+
+
+class CompressedModelWrapper:
+    def __init__(self, compressed: object) -> None:
+        self.tensors = {"weight": compressed}
+        self.payload = b""
+        self.format_version = "0.1"

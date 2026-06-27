@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hyperglyph-codec"
+version = "0.1.0"
+description = "Hyperdimensional symbolic residual compression for neural network weights"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Robert McMenemy" }]
+keywords = [
+  "machine-learning",
+  "compression",
+  "neural-networks",
+  "hyperdimensional-computing",
+  "pytorch",
+  "model-compression",
+  "quantization",
+  "research",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+  "build",
+  "twine",
+  "pre-commit",
+]
+torch = ["torch"]
+docs = ["mkdocs", "mkdocs-material"]
+
+[project.scripts]
+hyperglyph = "hyperglyph.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hyperglyph"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/hyperglyph"]
+strict = false
+ignore_missing_imports = true
+follow_imports = "skip"
+disable_error_code = ["syntax"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/hyperglyph"]
