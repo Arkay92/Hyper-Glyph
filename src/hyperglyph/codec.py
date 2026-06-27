@@ -239,7 +239,9 @@ class HyperGlyphCodec:
             scales.append(block_norm / proto_norm)
         return scales
 
-    def _channel_scales(self, array: np.ndarray, reconstructed_prototypes: np.ndarray) -> list[float]:
+    def _channel_scales(
+        self, array: np.ndarray, reconstructed_prototypes: np.ndarray
+    ) -> list[float]:
         if array.ndim == 0:
             return [1.0]
         channel_count = int(array.shape[0]) if array.ndim > 0 else 1

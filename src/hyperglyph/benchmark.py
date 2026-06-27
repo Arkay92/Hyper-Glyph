@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-import numpy as np
-
 from .codec import CompressionReport, HyperGlyphCodec
 
 
@@ -105,4 +103,3 @@ def _format_optional(value: float | None) -> str:
     if value == 0.0:
         return "0"
     return f"{value:.6g}"
-

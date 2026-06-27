@@ -31,7 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     compress_parser.add_argument("--n-prototypes", type=int, default=128)
     compress_parser.add_argument("--residual-k", type=int, default=8)
     compress_parser.add_argument("--residual-dtype", choices=["float32", "int8"], default="int8")
-    compress_parser.add_argument("--scale-mode", choices=["block", "tensor", "channel"], default="block")
+    compress_parser.add_argument(
+        "--scale-mode", choices=["block", "tensor", "channel"], default="block"
+    )
     compress_parser.add_argument("--seed", type=int, default=42)
     compress_parser.add_argument("--compress-bias", action="store_true")
     compress_parser.add_argument("--min-tensor-size", type=int, default=256)
@@ -45,12 +47,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     benchmark_parser = subparsers.add_parser("benchmark")
     benchmark_parser.add_argument("input", help="Input torch state dict file (.pt)")
-    benchmark_parser.add_argument("--markdown-output", help="Write benchmark report to a markdown file")
+    benchmark_parser.add_argument(
+        "--markdown-output", help="Write benchmark report to a markdown file"
+    )
     benchmark_parser.add_argument("--block-size", type=int, default=16)
     benchmark_parser.add_argument("--n-prototypes", type=int, default=128)
     benchmark_parser.add_argument("--residual-k", type=int, default=8)
     benchmark_parser.add_argument("--residual-dtype", choices=["float32", "int8"], default="int8")
-    benchmark_parser.add_argument("--scale-mode", choices=["block", "tensor", "channel"], default="block")
+    benchmark_parser.add_argument(
+        "--scale-mode", choices=["block", "tensor", "channel"], default="block"
+    )
 
     return parser
 
