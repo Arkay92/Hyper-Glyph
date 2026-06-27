@@ -17,4 +17,3 @@ def test_benchmark_report_exports_markdown_with_baselines() -> None:
     assert "INT8 estimate" in markdown
     assert "Hyper Glyph" in markdown
     assert report.compression.compressed_bytes > 0
-
