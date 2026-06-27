@@ -39,7 +39,9 @@ def compute_topk_residual(
         scale = float(np.max(np.abs(values)) / 127.0) if values.size else 1.0
         if scale == 0.0:
             scale = 1.0
-        quantized: np.ndarray = np.clip(np.rint(values / scale), -127, 127).astype(np.int8)
+        quantized: np.ndarray = np.clip(np.rint(values / scale), -127, 127).astype(
+            np.int8
+        )
         return {
             "indices": [int(index) for index in topk_idx],
             "values": [int(value) for value in quantized],
