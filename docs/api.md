@@ -5,7 +5,8 @@
 Configuration for the codec.
 
 - `residual_dtype`: `int8` or `float32` sparse residual storage.
-- `scale_mode`: `block`, `tensor`, or `channel` prototype scaling.
+- `scale_mode`: `per_block`, `per_tensor`, or `per_channel` scaling.
+- `mode`: `standard` or `compact`.
 
 ## HyperGlyphCodec
 
@@ -19,6 +20,12 @@ Configuration for the codec.
 
 - benchmark_state_dict(state_dict, codec=None)
 - BenchmarkReport.to_markdown()
+
+## Compact codec
+
+- CompactHyperGlyphCodec
+- compact binary `.hwz` streams
+- payload breakdown metadata
 
 ## Serialization helpers
 

@@ -9,11 +9,19 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from .archive import load_compact_hwz, save_compact_hwz
 from .codec import CompressedModel, CompressedTensor
+from .compact_codec import CompactCompressedModel
 
 
-def save_compressed(compressed_model: CompressedModel, path: str | Path) -> None:
+def save_compressed(
+    compressed_model: CompressedModel | CompactCompressedModel, path: str | Path
+) -> None:
     """Save a compressed model to a .hwz zip archive."""
+    if isinstance(compressed_model, CompactCompressedModel):
+        save_compact_hwz(compressed_model, path)
+        compressed_model.payload_breakdown["archive_total_bytes"] = Path(path).stat().st_size
+        return
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -33,11 +41,29 @@ def save_compressed(compressed_model: CompressedModel, path: str | Path) -> None
                 np.savez(handle, **prototype_arrays)  # type: ignore[arg-type]
 
 
-def load_compressed(path: str | Path) -> CompressedModel:
+def load_compressed(path: str | Path) -> CompressedModel | CompactCompressedModel:
     """Load a compressed model from a .hwz archive."""
     archive_path = Path(path)
     with zipfile.ZipFile(archive_path, "r") as archive:
         metadata = json.loads(archive.read("metadata.json"))
+        if metadata.get("mode") == "compact":
+            compact_metadata, streams = load_compact_hwz(path)
+            breakdown = {
+                "metadata_bytes": len(json.dumps(compact_metadata, sort_keys=True).encode("utf-8")),
+                "prototype_bytes": len(streams.get("prototypes", b"")),
+                "assignment_bytes": len(streams.get("assignments", b"")),
+                "scale_bytes": len(streams.get("scales", b""))
+                + len(streams.get("zero_points", b"")),
+                "residual_index_bytes": len(streams.get("residual_indices", b"")),
+                "residual_value_bytes": len(streams.get("residual_values", b"")),
+                "archive_total_bytes": archive_path.stat().st_size,
+            }
+            return CompactCompressedModel(
+                metadata=compact_metadata,
+                streams=streams,
+                archive_compression="zstd",
+                payload_breakdown=breakdown,
+            )
         prototype_arrays: Mapping[str, Any] = {}
         if "prototypes.npz" in archive.namelist():
             with archive.open("prototypes.npz") as handle:
@@ -47,7 +73,9 @@ def load_compressed(path: str | Path) -> CompressedModel:
             prototype_key = f"{name}_prototypes"
             tensors[name] = dict_to_tensor(value, prototype_arrays.get(prototype_key))
         return CompressedModel(
-            tensors=tensors, payload=b"", format_version=metadata.get("format_version", "0.1")
+            tensors=tensors,
+            payload=b"",
+            format_version=metadata.get("format_version", "0.1"),
         )
 
 

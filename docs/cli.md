@@ -7,7 +7,14 @@ Compress a PyTorch state dict into a .hwz archive.
 ```bash
 hyperglyph compress model.pt model.hwz \
   --residual-dtype int8 \
-  --scale-mode channel
+  --scale-mode per_channel
+```
+
+Compact mode:
+
+```bash
+hyperglyph compress model.pt model.hwz --mode compact --target-ratio 8
+hyperglyph inspect model.hwz
 ```
 
 ## decompress
@@ -39,4 +46,10 @@ Hyper Glyph comparisons:
 
 ```bash
 hyperglyph benchmark model.pt --markdown-output benchmark.md
+```
+
+Benchmark compact mode:
+
+```bash
+hyperglyph benchmark model.pt --mode compact
 ```

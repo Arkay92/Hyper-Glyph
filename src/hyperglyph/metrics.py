@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Mapping
 
 import numpy as np
@@ -25,6 +26,11 @@ def baseline_size_bytes(state_dict: Mapping[str, Any], bytes_per_value: int) -> 
 
 def compressed_size_bytes(compressed_model: object) -> int:
     """Estimate the compressed size in bytes."""
+    breakdown = getattr(compressed_model, "payload_breakdown", None)
+    if isinstance(breakdown, Mapping):
+        if "archive_total_bytes" in breakdown:
+            return int(breakdown["archive_total_bytes"])
+        return sum(int(value) for value in breakdown.values())
     if isinstance(compressed_model, Mapping):
         return len(compressed_model.get("payload", b""))
     tensors = getattr(compressed_model, "tensors", None)
@@ -34,6 +40,26 @@ def compressed_size_bytes(compressed_model: object) -> int:
             total += compressed_tensor_size_bytes(tensor)
         return total
     return 0
+
+
+def actual_archive_size_bytes(path: str | Path) -> int:
+    """Measure actual bytes written to an archive file."""
+    return Path(path).stat().st_size
+
+
+def payload_breakdown(compressed_model: object) -> dict[str, int]:
+    """Return payload breakdown when available."""
+    breakdown = getattr(compressed_model, "payload_breakdown", None)
+    if isinstance(breakdown, Mapping):
+        return {str(key): int(value) for key, value in breakdown.items()}
+    return {
+        "metadata_bytes": 0,
+        "prototype_bytes": 0,
+        "assignment_bytes": compressed_size_bytes(compressed_model),
+        "scale_bytes": 0,
+        "residual_index_bytes": 0,
+        "residual_value_bytes": 0,
+    }
 
 
 def compressed_tensor_size_bytes(tensor: object) -> int:
@@ -85,7 +111,11 @@ def cosine_weight_similarity(original: np.ndarray, reconstructed: np.ndarray) ->
     """Compute cosine similarity between two arrays."""
     original = np.asarray(original, dtype=np.float32).ravel()
     reconstructed = np.asarray(reconstructed, dtype=np.float32).ravel()
-    denom = np.linalg.norm(original) * np.linalg.norm(reconstructed)
+    original_norm = np.linalg.norm(original)
+    reconstructed_norm = np.linalg.norm(reconstructed)
+    if original_norm == 0 and reconstructed_norm == 0:
+        return 1.0
+    denom = original_norm * reconstructed_norm
     if denom == 0:
         return 0.0
     return float(np.dot(original, reconstructed) / denom)

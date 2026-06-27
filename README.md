@@ -86,6 +86,9 @@ Hyper Glyph v0.2.0 is an experimental research codec. It is intended for
 testing ideas around hyperdimensional and symbolic weight compression rather
 than guaranteed production compression.
 
+Hyper Glyph v0.3.0 adds **compact mode**, a byte-packed archive path focused on
+actual stored bytes rather than theoretical payload estimates.
+
 Sample v0.2.0 benchmark from `examples/artifacts/sample-v0.2-benchmark.md`:
 
 | Representation | Bytes | Ratio vs FP32 | MSE | MAE | Max abs error |
@@ -97,6 +100,45 @@ Sample v0.2.0 benchmark from `examples/artifacts/sample-v0.2-benchmark.md`:
 
 The matching compressed artifact is `examples/artifacts/sample-v0.2.hwz`
 and is 26,318 bytes on disk in the current zip-based archive format.
+
+### Hyper Glyph Compact Mode
+
+Compact mode moves large payloads out of JSON and into binary streams inside the
+`.hwz` archive. It includes:
+
+- Global codebook and packed assignment utilities for symbolic prototype experiments.
+- Packed int4 tensor storage when it beats prototype mode on byte/error tradeoffs.
+- Float16 or float32 scale metadata, with per-tensor and per-channel scale modes.
+- Adaptive sparse residual budget helpers with delta-varint index encoding.
+- Optional zstd compression for binary streams via `hyperglyph-codec[compression]`.
+- Payload breakdown reporting for metadata, assignments, scales, residuals, and archive size.
+
+Measured on the deterministic synthetic GPT-style benchmark:
+
+| Method | Bytes | Ratio | MSE | Cosine |
+| --- | ---: | ---: | ---: | ---: |
+| FP32 | 918528 | 1.00x | 0 | 1.00000004 |
+| FP16 quantization | 459264 | 2.00x | 2.9432538e-10 | 0.99999992 |
+| INT8 quantization | 229632 | 4.00x | 5.783329e-07 | 0.99996566 |
+| INT4 quantization | 114900 | 7.99x | 0.00016693089 | 0.99027589 |
+| Hyper Glyph standard | 759603 | 1.21x | 0.00028803079 | 0.97888187 |
+| Hyper Glyph compact | 123155 | 7.46x | 6.6366149e-05 | 0.99517650 |
+
+Payload breakdown for `Hyper Glyph compact`:
+
+| Payload | Bytes |
+| --- | ---: |
+| metadata_bytes | 4706 |
+| prototype_bytes | 0 |
+| assignment_bytes | 114688 |
+| scale_bytes | 18432 |
+| residual_index_bytes | 0 |
+| residual_value_bytes | 0 |
+| archive_total_bytes | 123155 |
+
+On this benchmark, compact mode beats plain INT4 reconstruction error but uses
+slightly more bytes because it stores per-channel scale metadata. INT4 can still
+win on raw ratio for some tensors.
 
 ---
 
@@ -190,6 +232,12 @@ For PyTorch state dict support:
 
 ```bash
 pip install "hyperglyph-codec[torch]"
+```
+
+For compact archives with optional zstd compression:
+
+```bash
+pip install "hyperglyph-codec[torch,compression]"
 ```
 
 For documentation dependencies:
@@ -297,6 +345,13 @@ Compress a PyTorch state dict into a `.hwz` archive:
 hyperglyph compress model.pt model.hwz
 ```
 
+Use compact mode and a target ratio:
+
+```bash
+hyperglyph compress gpt2.pt gpt2.hwz --mode compact --target-ratio 8
+hyperglyph inspect gpt2.hwz
+```
+
 Tune compression settings:
 
 ```bash
@@ -307,7 +362,7 @@ hyperglyph compress model.pt model.hwz \
   --n-prototypes 128 \
   --residual-k 8 \
   --residual-dtype int8 \
-  --scale-mode channel \
+  --scale-mode per_channel \
   --min-tensor-size 256
 ```
 
@@ -327,6 +382,12 @@ Benchmark compression and reconstruction:
 
 ```bash
 hyperglyph benchmark model.pt
+```
+
+Benchmark compact mode:
+
+```bash
+hyperglyph benchmark model.pt --mode compact
 ```
 
 Export the benchmark as markdown:
@@ -543,15 +604,22 @@ hyperglyph benchmark model.pt
 ```text
 src/hyperglyph/
   __init__.py             # Public API
+  archive.py              # Compact .hwz binary stream archive helpers
+  benchmark.py            # Benchmark report helpers
   blocks.py               # Tensor flattening, block splitting, shape restore
   cli.py                  # Command-line interface
   codec.py                # HyperGlyphCodec and compressed dataclasses
+  compact_codec.py        # CompactHyperGlyphCodec
   config.py               # HyperGlyphConfig
   exceptions.py           # Package exceptions
+  global_codebook.py      # Global prototype collection and assignment helpers
   hdc.py                  # Hyperdimensional vector helpers
   metrics.py              # Size and reconstruction metrics
+  packing.py              # uint4/int4/varint/delta packing helpers
   prototypes.py           # Prototype learning and assignment
+  quantization.py         # int8/int4 quantization helpers
   residual.py             # Sparse residual encoding and repair
+  residual_budget.py      # Adaptive residual budget helpers
   serialization.py        # .hwz save/load helpers
   torch_adapter.py        # Optional PyTorch integration
   py.typed                # Typing marker
@@ -567,6 +635,7 @@ examples/
   compress_mlp.py         # PyTorch MLP compression example
   compress_state_dict.py  # NumPy state dict compression example
   mnist_demo.py           # MNIST-oriented demo
+  benchmark_hyperglyph_vs_quant.py # FP32/FP16/INT8/INT4/Hyper Glyph benchmark
   artifacts/
     sample-v0.2.hwz       # Example compressed archive
     sample-v0.2-benchmark.md # Markdown benchmark report
@@ -623,6 +692,6 @@ If you use Hyper Glyph in research, please cite:
   title={Hyper Glyph: Hyperdimensional Symbolic Residual Compression for Neural Network Weights},
   author={Robert McMenemy},
   year={2026},
-  version={0.2.0},
+  version={0.3.0},
 }
 ```

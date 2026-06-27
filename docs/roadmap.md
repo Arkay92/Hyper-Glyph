@@ -25,6 +25,15 @@
 
 ## Version 0.3.0 - PyTorch integration
 
+- compact codec mode
+- packed binary archive streams
+- packed int4 tensor codec
+- global prototype codebook helpers
+- adaptive residual budget helpers
+- GPT-style benchmark reports
+
+## Future PyTorch integration
+
 - compress_model(model)
 - decompress_into_model(model, compressed)
 - calibration pass

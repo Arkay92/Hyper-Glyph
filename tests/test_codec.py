@@ -51,7 +51,7 @@ def test_tensor_and_channel_scale_modes_compress() -> None:
         compressed = codec.compress_array("weight", data)
         restored = codec.decompress_array(compressed)
         assert restored.shape == data.shape
-        assert compressed.codec_config["scale_mode"] == scale_mode
+        assert compressed.codec_config["scale_mode"] == f"per_{scale_mode}"
 
 
 class CompressedModelWrapper:

@@ -15,5 +15,11 @@ In v0.2, prototype scales can be calculated per block, per tensor, or per
 channel. Sparse residual values can be stored as float32 or quantized to int8
 with a residual scale for decoding.
 
+In v0.3, compact mode stores large payloads as binary streams instead of JSON.
+The default compact tensor path uses packed int4 affine values with calibrated
+scale metadata because it gives quantization-class archive ratios on GPT-style
+weight matrices. Prototype codebook and residual-budget helpers are available
+for symbolic codec experiments.
+
 The implementation is intentionally simple and leaves room for learned decoders
 and richer codecs later.

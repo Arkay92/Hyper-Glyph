@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     compress_parser = subparsers.add_parser("compress")
     compress_parser.add_argument("input", help="Input torch state dict file (.pt)")
     compress_parser.add_argument("output", help="Output .hwz file")
+    compress_parser.add_argument("--mode", choices=["standard", "compact"], default="compact")
     compress_parser.add_argument("--block-size", type=int, default=16)
     compress_parser.add_argument("--hdc-dim", type=int, default=4096)
     compress_parser.add_argument("--n-buckets", type=int, default=16)
@@ -37,6 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     compress_parser.add_argument("--seed", type=int, default=42)
     compress_parser.add_argument("--compress-bias", action="store_true")
     compress_parser.add_argument("--min-tensor-size", type=int, default=256)
+    compress_parser.add_argument("--target-ratio", type=float, default=6.0)
 
     decompress_parser = subparsers.add_parser("decompress")
     decompress_parser.add_argument("input", help="Input .hwz file")
@@ -47,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     benchmark_parser = subparsers.add_parser("benchmark")
     benchmark_parser.add_argument("input", help="Input torch state dict file (.pt)")
+    benchmark_parser.add_argument("--mode", choices=["standard", "compact"], default="compact")
     benchmark_parser.add_argument(
         "--markdown-output", help="Write benchmark report to a markdown file"
     )
@@ -81,6 +84,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             seed=args.seed,
             compress_bias=args.compress_bias,
             min_tensor_size=args.min_tensor_size,
+            mode=args.mode,
+            target_ratio=args.target_ratio,
         )
         codec = HyperGlyphCodec(config)
         compressed = codec.compress_state_dict(state_dict)
@@ -99,11 +104,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "inspect":
         compressed = load_compressed(args.input)
+        breakdown = getattr(compressed, "payload_breakdown", {})
         print(
             json.dumps(
                 {
                     "format_version": compressed.format_version,
-                    "tensor_count": len(compressed.tensors),
+                    "mode": getattr(compressed, "mode", "standard"),
+                    "tensor_count": len(getattr(compressed, "tensors", {}))
+                    or int(getattr(compressed, "metadata", {}).get("tensor_count", 0)),
+                    "payload_breakdown": breakdown,
                 },
                 indent=2,
             )
@@ -121,6 +130,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 residual_k=args.residual_k,
                 residual_dtype=args.residual_dtype,
                 scale_mode=args.scale_mode,
+                mode=args.mode,
             )
         )
         report = benchmark_state_dict(state_dict, codec)

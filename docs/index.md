@@ -21,6 +21,10 @@ v0.2 adds int8 residual quantization, per-block/per-tensor/per-channel scale
 modes, markdown benchmark reports, and baseline comparisons against FP32, FP16
 estimate, and INT8 estimate sizes.
 
+v0.3 adds compact mode with byte-packed binary streams, packed int4 tensor
+storage, payload breakdown reports, and a GPT-style benchmark script that
+measures actual `.hwz` archive size.
+
 ## Notes
 
 The codec is intended for research and experimentation rather than guaranteed production compression.
