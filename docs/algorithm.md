@@ -11,4 +11,9 @@ The reconstruction is:
 
 $$W \approx \text{Decode}(\text{prototype}) + \text{sparse residual}$$
 
-The implementation is intentionally simple for v0.1 and leaves room for learned decoders and richer codecs later.
+In v0.2, prototype scales can be calculated per block, per tensor, or per
+channel. Sparse residual values can be stored as float32 or quantized to int8
+with a residual scale for decoding.
+
+The implementation is intentionally simple and leaves room for learned decoders
+and richer codecs later.

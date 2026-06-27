@@ -25,11 +25,14 @@
 - **Block-level tensor compression** for NumPy arrays and neural network weights.
 - **Symbolic prototype assignment** to represent repeated weight patterns compactly.
 - **Sparse residual repair** to preserve reconstruction fidelity after prototype decoding.
+- **Int8 residual quantization** to reduce sparse repair payload size.
+- **Per-block, per-tensor, and per-channel prototype scales** for tuning reconstruction behavior.
 - **Configurable compression controls** for block size, prototype count, residual size, and tensor filtering.
 - **State dict compression** for model-like parameter dictionaries.
 - **Optional PyTorch support** for loading, compressing, restoring, and benchmarking `.pt` state dicts.
 - **`.hwz` serialization** for saving compressed models as portable archives.
 - **Compression reports** with size ratio, tensor counts, and reconstruction error metrics.
+- **Markdown benchmark export** with FP32, FP16 estimate, INT8 estimate, and Hyper Glyph comparisons.
 - **A small CLI** for compressing, decompressing, inspecting, and benchmarking model archives.
 - **Typed Python API** designed for research, experimentation, and extension.
 
@@ -79,9 +82,21 @@ That is the core job: encode large weight tensors as reusable symbolic
 prototypes plus a small residual correction, then report the size and
 reconstruction tradeoff.
 
-Hyper Glyph v0.1.0 is an experimental research codec. It is intended for
+Hyper Glyph v0.2.0 is an experimental research codec. It is intended for
 testing ideas around hyperdimensional and symbolic weight compression rather
 than guaranteed production compression.
+
+Sample v0.2.0 benchmark from `examples/artifacts/sample-v0.2-benchmark.md`:
+
+| Representation | Bytes | Ratio vs FP32 | MSE | MAE | Max abs error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FP32 | 24576 | 1.00x | 0 | 0 | 0 |
+| FP16 estimate | 12288 | 2.00x | - | - | - |
+| INT8 estimate | 6144 | 4.00x | - | - | - |
+| Hyper Glyph | 22032 | 1.12x | 0.00266153 | 0.0405458 | 0.197096 |
+
+The matching compressed artifact is `examples/artifacts/sample-v0.2.hwz`
+and is 26,318 bytes on disk in the current zip-based archive format.
 
 ---
 
@@ -97,7 +112,7 @@ Weight tensors
   -> Learn reusable prototype blocks
   -> Assign each block to a prototype
   -> Store per-block scales
-  -> Store sparse top-k residual corrections
+  -> Store sparse top-k residual corrections as int8 or float32
 
   -> Save compressed archive
   -> Restore approximate tensors
@@ -110,6 +125,7 @@ tradeoff directly:
 - **Large weight matrices** that can be split into repeated local blocks.
 - **Prototype-based compression** where blocks share learned representatives.
 - **Sparse residual repair** where only the largest reconstruction corrections are stored.
+- **Scale modes** for per-block, per-tensor, or per-channel prototype scaling.
 - **Approximate reconstruction** with measurable MSE, MAE, and max absolute error.
 - **State dict workflows** that match common PyTorch model storage patterns.
 - **Portable archive output** for saving and inspecting compressed runs.
@@ -142,7 +158,7 @@ Compression
   - prototype learning
   - prototype assignment
   - scale calculation
-  - sparse residual encoding
+  - int8 or float32 sparse residual encoding
     |
     v
 CompressedModel
@@ -235,6 +251,8 @@ config = HyperGlyphConfig(
     block_size=16,
     n_prototypes=16,
     residual_k=4,
+    residual_dtype="int8",
+    scale_mode="block",
 )
 
 codec = HyperGlyphCodec(config)
@@ -288,6 +306,8 @@ hyperglyph compress model.pt model.hwz \
   --n-buckets 16 \
   --n-prototypes 128 \
   --residual-k 8 \
+  --residual-dtype int8 \
+  --scale-mode channel \
   --min-tensor-size 256
 ```
 
@@ -309,6 +329,12 @@ Benchmark compression and reconstruction:
 hyperglyph benchmark model.pt
 ```
 
+Export the benchmark as markdown:
+
+```bash
+hyperglyph benchmark model.pt --markdown-output benchmark.md
+```
+
 ---
 
 ## Benchmark Example
@@ -319,17 +345,14 @@ A small practical benchmark is enough to see the current codec behavior:
 hyperglyph benchmark model.pt
 ```
 
-Example report fields:
+Example markdown output:
 
 ```text
-original_bytes
-compressed_bytes
-compression_ratio
-tensors_compressed
-tensors_skipped
-total_mse
-total_mae
-max_abs_error
+| Representation | Bytes | Ratio vs FP32 | MSE | MAE | Max abs error |
+| FP32 | 24576 | 1.00x | 0 | 0 | 0 |
+| FP16 estimate | 12288 | 2.00x | - | - | - |
+| INT8 estimate | 6144 | 4.00x | - | - | - |
+| Hyper Glyph | 22032 | 1.12x | 0.00266153 | 0.0405458 | 0.197096 |
 ```
 
 The current package focuses on transparent compression experiments rather than
@@ -353,6 +376,8 @@ config = HyperGlyphConfig(
     n_buckets=16,
     n_prototypes=128,
     residual_k=8,
+    residual_dtype="int8",
+    scale_mode="channel",
     seed=42,
     min_tensor_size=256,
     compress_bias=False,
@@ -398,6 +423,9 @@ block ~= prototype[prototype_id] * scale + sparse_residual
 
 Increase `residual_k` for better reconstruction fidelity, or reduce it for a
 smaller compressed representation.
+
+Set `residual_dtype="int8"` to quantize sparse residual values. Use
+`residual_dtype="float32"` when you want unquantized residual repairs.
 
 ### 5. **Serialization**
 
@@ -450,6 +478,8 @@ config = HyperGlyphConfig(
     n_buckets=16,
     n_prototypes=128,
     residual_k=8,
+    residual_dtype="int8",
+    scale_mode="block",
     seed=42,
     min_tensor_size=256,
     compress_bias=False,
@@ -463,6 +493,8 @@ Key settings:
 - **`block_size`** controls how many flattened weights are grouped together.
 - **`n_prototypes`** controls how many reusable block representatives are learned.
 - **`residual_k`** controls how many residual correction values are stored per block.
+- **`residual_dtype`** controls whether sparse residual values are stored as `int8` or `float32`.
+- **`scale_mode`** controls whether prototype scales are calculated per `block`, per `tensor`, or per `channel`.
 - **`min_tensor_size`** skips tensors too small to benefit from compression.
 - **`compress_bias`** enables compression for bias tensors, which are skipped by default.
 - **`seed`** makes prototype selection deterministic.
@@ -486,6 +518,8 @@ codec = HyperGlyphCodec(
         block_size=16,
         n_prototypes=64,
         residual_k=8,
+        residual_dtype="int8",
+        scale_mode="channel",
     )
 )
 
@@ -533,6 +567,9 @@ examples/
   compress_mlp.py         # PyTorch MLP compression example
   compress_state_dict.py  # NumPy state dict compression example
   mnist_demo.py           # MNIST-oriented demo
+  artifacts/
+    sample-v0.2.hwz       # Example compressed archive
+    sample-v0.2-benchmark.md # Markdown benchmark report
 hyperglyph.png            # Project logo
 pyproject.toml            # Package metadata and dependencies
 CHANGELOG.md              # Release history
@@ -586,7 +623,6 @@ If you use Hyper Glyph in research, please cite:
   title={Hyper Glyph: Hyperdimensional Symbolic Residual Compression for Neural Network Weights},
   author={Robert McMenemy},
   year={2026},
-  version={0.1.0},
+  version={0.2.0},
 }
 ```
-

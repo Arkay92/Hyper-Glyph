@@ -15,7 +15,7 @@ def test_save_and_load_hwz(tmp_path) -> None:
     save_compressed(compressed_model_from_tensor(compressed), path)
     loaded = load_compressed(path)
 
-    assert loaded.format_version == "0.1"
+    assert loaded.format_version == "0.2"
     assert "weight" in loaded.tensors
     assert loaded.tensors["weight"].name == "weight"
 
@@ -35,4 +35,4 @@ def test_metadata_format_version_exists(tmp_path) -> None:
 def compressed_model_from_tensor(compressed):
     from hyperglyph.codec import CompressedModel
 
-    return CompressedModel(tensors={"weight": compressed}, payload=b"", format_version="0.1")
+    return CompressedModel(tensors={"weight": compressed}, payload=b"", format_version="0.2")

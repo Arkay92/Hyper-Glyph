@@ -4,6 +4,9 @@
 
 Configuration for the codec.
 
+- `residual_dtype`: `int8` or `float32` sparse residual storage.
+- `scale_mode`: `block`, `tensor`, or `channel` prototype scaling.
+
 ## HyperGlyphCodec
 
 - compress_array(name, array)
@@ -11,6 +14,11 @@ Configuration for the codec.
 - compress_state_dict(state_dict)
 - decompress_state_dict(compressed_model)
 - report(compressed_model, original_state_dict, restored_state_dict)
+
+## Benchmark helpers
+
+- benchmark_state_dict(state_dict, codec=None)
+- BenchmarkReport.to_markdown()
 
 ## Serialization helpers
 

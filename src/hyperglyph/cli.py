@@ -11,6 +11,7 @@ try:
 except ImportError:  # pragma: no cover - optional dependency path
     torch = None
 
+from .benchmark import benchmark_state_dict
 from .codec import HyperGlyphCodec
 from .config import HyperGlyphConfig
 from .serialization import load_compressed, save_compressed
@@ -29,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
     compress_parser.add_argument("--n-buckets", type=int, default=16)
     compress_parser.add_argument("--n-prototypes", type=int, default=128)
     compress_parser.add_argument("--residual-k", type=int, default=8)
+    compress_parser.add_argument("--residual-dtype", choices=["float32", "int8"], default="int8")
+    compress_parser.add_argument("--scale-mode", choices=["block", "tensor", "channel"], default="block")
     compress_parser.add_argument("--seed", type=int, default=42)
     compress_parser.add_argument("--compress-bias", action="store_true")
     compress_parser.add_argument("--min-tensor-size", type=int, default=256)
@@ -42,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     benchmark_parser = subparsers.add_parser("benchmark")
     benchmark_parser.add_argument("input", help="Input torch state dict file (.pt)")
+    benchmark_parser.add_argument("--markdown-output", help="Write benchmark report to a markdown file")
+    benchmark_parser.add_argument("--block-size", type=int, default=16)
+    benchmark_parser.add_argument("--n-prototypes", type=int, default=128)
+    benchmark_parser.add_argument("--residual-k", type=int, default=8)
+    benchmark_parser.add_argument("--residual-dtype", choices=["float32", "int8"], default="int8")
+    benchmark_parser.add_argument("--scale-mode", choices=["block", "tensor", "channel"], default="block")
 
     return parser
 
@@ -61,6 +70,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             n_buckets=args.n_buckets,
             n_prototypes=args.n_prototypes,
             residual_k=args.residual_k,
+            residual_dtype=args.residual_dtype,
+            scale_mode=args.scale_mode,
             seed=args.seed,
             compress_bias=args.compress_bias,
             min_tensor_size=args.min_tensor_size,
@@ -97,11 +108,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         if torch is None:
             raise SystemExit("PyTorch is required for benchmark CLI commands")
         state_dict = torch.load(args.input, map_location="cpu")
-        codec = HyperGlyphCodec()
-        compressed = codec.compress_state_dict(state_dict)
-        restored = codec.decompress_state_dict(compressed)
-        report = codec.report(compressed, state_dict, restored)
-        print(report)
+        codec = HyperGlyphCodec(
+            HyperGlyphConfig(
+                block_size=args.block_size,
+                n_prototypes=args.n_prototypes,
+                residual_k=args.residual_k,
+                residual_dtype=args.residual_dtype,
+                scale_mode=args.scale_mode,
+            )
+        )
+        report = benchmark_state_dict(state_dict, codec)
+        markdown = report.to_markdown()
+        if args.markdown_output:
+            with open(args.markdown_output, "w", encoding="utf-8") as handle:
+                handle.write(markdown)
+        print(markdown)
         return 0
 
     parser.error("unknown command")

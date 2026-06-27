@@ -14,7 +14,7 @@ def test_inspect_command_exits_successfully(tmp_path) -> None:
 
     path = tmp_path / "model.hwz"
     save_compressed(
-        CompressedModel(tensors={"weight": compressed}, payload=b"", format_version="0.1"),
+        CompressedModel(tensors={"weight": compressed}, payload=b"", format_version="0.2"),
         path,
     )
 

@@ -14,6 +14,8 @@ class HyperGlyphConfig:
     n_buckets: int = 16
     n_prototypes: int = 128
     residual_k: int = 8
+    residual_dtype: str = "int8"
+    scale_mode: str = "block"
     seed: int = 42
     min_tensor_size: int = 256
     compress_bias: bool = False
@@ -31,6 +33,10 @@ class HyperGlyphConfig:
             raise ValueError("n_prototypes must be positive")
         if self.residual_k < 0:
             raise ValueError("residual_k must be non-negative")
+        if self.residual_dtype not in {"float32", "int8"}:
+            raise ValueError("residual_dtype must be 'float32' or 'int8'")
+        if self.scale_mode not in {"block", "tensor", "channel"}:
+            raise ValueError("scale_mode must be 'block', 'tensor', or 'channel'")
         if self.min_tensor_size <= 0:
             raise ValueError("min_tensor_size must be positive")
         if self.dtype not in {"float32", "float64"}:

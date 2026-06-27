@@ -64,4 +64,7 @@ def decompress_state_dict(
     restored = codec.decompress_state_dict(compressed_model)
     if reference_state_dict is None:
         return restored
-    return {name: numpy_to_tensor(restored[name], reference_state_dict[name]) for name in restored}
+    merged: dict[str, Any] = dict(reference_state_dict)
+    for name, value in restored.items():
+        merged[name] = numpy_to_tensor(value, reference_state_dict[name])
+    return merged

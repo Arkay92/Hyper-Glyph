@@ -11,6 +11,7 @@ import numpy as np
 from .blocks import restore_tensor_shape, split_array_blocks
 from .config import HyperGlyphConfig
 from .metrics import (
+    baseline_size_bytes,
     compressed_size_bytes,
     compression_ratio,
     mae,
@@ -43,7 +44,7 @@ class CompressedModel:
 
     tensors: dict[str, CompressedTensor]
     payload: bytes = field(default_factory=bytes)
-    format_version: str = "0.1"
+    format_version: str = "0.2"
 
 
 @dataclass(slots=True)
@@ -53,6 +54,10 @@ class CompressionReport:
     original_bytes: int
     compressed_bytes: int
     compression_ratio: float
+    fp16_estimate_bytes: int
+    int8_estimate_bytes: int
+    fp16_compression_ratio: float
+    int8_compression_ratio: float
     tensors_compressed: int
     tensors_skipped: int
     total_mse: float
@@ -82,16 +87,18 @@ class HyperGlyphCodec:
         reconstructed_prototypes = reconstruct_from_prototypes(assignments, prototypes)
 
         prototype_ids: list[int] = [int(idx) for idx in assignments]
-        scales: list[float] = []
+        scales = self._block_scales(array, blocks, reconstructed_prototypes)
         residuals: list[dict[str, Any]] = []
         for idx, block in enumerate(blocks):
             proto = reconstructed_prototypes[idx]
-            block_norm = float(np.linalg.norm(block))
-            proto_norm = max(float(np.linalg.norm(proto)), 1e-6)
-            scale = block_norm / proto_norm
-            scales.append(scale)
+            scale = scales[idx]
             proto_scaled = proto * scale
-            residual = compute_topk_residual(block, proto_scaled, self.config.residual_k)
+            residual = compute_topk_residual(
+                block,
+                proto_scaled,
+                self.config.residual_k,
+                dtype=self.config.residual_dtype,
+            )
             residuals.append(serialize_residual(residual))
 
         return CompressedTensor(
@@ -109,6 +116,8 @@ class HyperGlyphCodec:
                 "n_buckets": self.config.n_buckets,
                 "n_prototypes": self.config.n_prototypes,
                 "residual_k": self.config.residual_k,
+                "residual_dtype": self.config.residual_dtype,
+                "scale_mode": self.config.scale_mode,
                 "seed": self.config.seed,
                 "dtype": self.config.dtype,
                 "device": self.config.device,
@@ -161,6 +170,8 @@ class HyperGlyphCodec:
         original_bytes = original_size_bytes(original_state_dict or {})
         compressed_bytes = compressed_size_bytes(compressed_model)
         ratio = compression_ratio(original_bytes, compressed_bytes)
+        fp16_bytes = baseline_size_bytes(original_state_dict or {}, bytes_per_value=2)
+        int8_bytes = baseline_size_bytes(original_state_dict or {}, bytes_per_value=1)
         tensors_compressed = len(compressed_model.tensors)
         tensors_skipped = 0
         if original_state_dict is not None:
@@ -183,6 +194,10 @@ class HyperGlyphCodec:
             original_bytes=original_bytes,
             compressed_bytes=compressed_bytes,
             compression_ratio=ratio,
+            fp16_estimate_bytes=fp16_bytes,
+            int8_estimate_bytes=int8_bytes,
+            fp16_compression_ratio=compression_ratio(original_bytes, fp16_bytes),
+            int8_compression_ratio=compression_ratio(original_bytes, int8_bytes),
             tensors_compressed=tensors_compressed,
             tensors_skipped=tensors_skipped,
             total_mse=total_mse,
@@ -198,3 +213,56 @@ class HyperGlyphCodec:
         return (
             "bias" not in name.lower() and int(np.prod(tensor.shape)) >= self.config.min_tensor_size
         )
+
+    def _block_scales(
+        self,
+        array: np.ndarray,
+        blocks: list[np.ndarray],
+        reconstructed_prototypes: np.ndarray,
+    ) -> list[float]:
+        """Calculate block, tensor, or channel scale values for prototype decoding."""
+        if self.config.scale_mode == "tensor":
+            block_matrix = np.stack(blocks, axis=0).astype(np.float32)
+            block_norm = float(np.linalg.norm(block_matrix))
+            proto_norm = max(float(np.linalg.norm(reconstructed_prototypes)), 1e-6)
+            return [block_norm / proto_norm for _ in blocks]
+
+        if self.config.scale_mode == "channel":
+            channel_scales = self._channel_scales(array, reconstructed_prototypes)
+            channel_ids = self._block_channel_ids(array.shape, len(blocks))
+            return [channel_scales[channel_id] for channel_id in channel_ids]
+
+        scales: list[float] = []
+        for idx, block in enumerate(blocks):
+            block_norm = float(np.linalg.norm(block))
+            proto_norm = max(float(np.linalg.norm(reconstructed_prototypes[idx])), 1e-6)
+            scales.append(block_norm / proto_norm)
+        return scales
+
+    def _channel_scales(self, array: np.ndarray, reconstructed_prototypes: np.ndarray) -> list[float]:
+        if array.ndim == 0:
+            return [1.0]
+        channel_count = int(array.shape[0]) if array.ndim > 0 else 1
+        channel_size = int(np.prod(array.shape[1:])) if array.ndim > 1 else 1
+        flat_original = np.asarray(array, dtype=np.float32).reshape(-1)
+        flat_reconstructed = reconstructed_prototypes.reshape(-1)[: flat_original.size]
+        scales: list[float] = []
+        for channel in range(channel_count):
+            start = channel * channel_size
+            end = min(start + channel_size, flat_original.size)
+            original_norm = float(np.linalg.norm(flat_original[start:end]))
+            proto_norm = max(float(np.linalg.norm(flat_reconstructed[start:end])), 1e-6)
+            scales.append(original_norm / proto_norm)
+        return scales
+
+    def _block_channel_ids(self, shape: tuple[int, ...], block_count: int) -> list[int]:
+        if not shape:
+            return [0 for _ in range(block_count)]
+        channel_count = int(shape[0])
+        channel_size = int(np.prod(shape[1:])) if len(shape) > 1 else 1
+        ids: list[int] = []
+        for block_index in range(block_count):
+            flat_index = block_index * self.config.block_size
+            channel_id = min(flat_index // max(channel_size, 1), channel_count - 1)
+            ids.append(int(channel_id))
+        return ids
