@@ -7,6 +7,9 @@ Configuration for the codec.
 - `residual_dtype`: `int8` or `float32` sparse residual storage.
 - `scale_mode`: `per_block`, `per_tensor`, or `per_channel` scaling.
 - `mode`: `standard` or `compact`.
+- `compact_tensor_codec`: `codebook`, `packed_int4`, or `auto`.
+- `assignment_encoding`: `auto`, `raw`, `uint4`, or `rle`.
+- `assignment_group_size`: number of neighboring blocks sharing one assignment.
 
 ## HyperGlyphCodec
 
@@ -26,6 +29,8 @@ Configuration for the codec.
 - CompactHyperGlyphCodec
 - compact binary `.hwz` streams
 - payload breakdown metadata
+- learned codebook mode
+- packed-int4 mode
 
 ## Serialization helpers
 

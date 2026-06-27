@@ -21,5 +21,11 @@ scale metadata because it gives quantization-class archive ratios on GPT-style
 weight matrices. Prototype codebook and residual-budget helpers are available
 for symbolic codec experiments.
 
+In v0.4, compact mode defaults to a learned global codebook. Blocks are assigned
+to a shared prototype bank, assignments are packed as uint4 when possible, and
+RLE is selected when it is smaller. This greatly reduces assignment bytes, but
+the packed-int4 path remains better for reconstruction quality on random
+GPT-style synthetic weights.
+
 The implementation is intentionally simple and leaves room for learned decoders
 and richer codecs later.

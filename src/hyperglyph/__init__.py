@@ -23,4 +23,4 @@ __all__ = [
     "load_compressed",
     "benchmark_state_dict",
 ]
-__version__ = "0.3.0"
+__version__ = "0.4.0"

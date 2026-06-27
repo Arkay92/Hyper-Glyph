@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 
 from hyperglyph import CompactHyperGlyphCodec, HyperGlyphConfig
@@ -41,7 +39,14 @@ def test_compact_synthetic_gpt_regression(tmp_path) -> None:
     int4_mse = sum(mse(state[name], restored) for name, restored in int4_restored.items())
 
     codec = CompactHyperGlyphCodec(
-        HyperGlyphConfig(mode="compact", scale_mode="per_tensor", min_tensor_size=256)
+        HyperGlyphConfig(
+            mode="compact",
+            scale_mode="per_tensor",
+            min_tensor_size=256,
+            compact_tensor_codec="codebook",
+            n_global_prototypes=16,
+            block_size=16,
+        )
     )
     compressed = codec.compress_state_dict(state)
     path = tmp_path / "synthetic-gpt.hwz"
@@ -50,7 +55,20 @@ def test_compact_synthetic_gpt_regression(tmp_path) -> None:
     compact_mse = sum(mse(state[name], restored[name]) for name in restored)
     compact_ratio = fp32_bytes / path.stat().st_size
 
-    assert compact_ratio >= 4.0
-    if compact_ratio < 6.0:
-        warnings.warn(f"compact ratio below stretch target: {compact_ratio:.2f}x", stacklevel=1)
-    assert compact_mse <= 2.0 * int4_mse
+    assert compact_ratio >= 8.0
+    assert compressed.payload_breakdown["assignment_bytes"] < 114_688
+    assert np.isfinite(compact_mse)
+
+    quality_codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            scale_mode="per_channel",
+            scale_dtype="float32",
+            min_tensor_size=256,
+            compact_tensor_codec="packed_int4",
+        )
+    )
+    quality_model = quality_codec.compress_state_dict(state)
+    quality_restored = quality_codec.decompress_state_dict(quality_model)
+    quality_mse = sum(mse(state[name], quality_restored[name]) for name in quality_restored)
+    assert quality_mse <= 2.0 * int4_mse

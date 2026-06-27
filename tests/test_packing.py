@@ -6,6 +6,8 @@ from hyperglyph.packing import (
     delta_encode,
     pack_int4,
     pack_uint4,
+    rle_decode_uint,
+    rle_encode_uint,
     unpack_int4,
     unpack_uint4,
     varint_decode,
@@ -42,3 +44,10 @@ def test_choose_min_uint_dtype() -> None:
     assert choose_min_uint_dtype(15) == "uint4"
     assert str(choose_min_uint_dtype(255)) == "uint8"
     assert str(choose_min_uint_dtype(65535)) == "uint16"
+
+
+def test_rle_uint_roundtrip() -> None:
+    values = np.array([1, 1, 1, 2, 2, 7, 7, 7, 7], dtype=np.uint32)
+    encoded = rle_encode_uint(values)
+    assert np.array_equal(rle_decode_uint(encoded, len(values)), values)
+    assert len(encoded) < values.nbytes

@@ -20,6 +20,9 @@ def save_compressed(
     """Save a compressed model to a .hwz zip archive."""
     if isinstance(compressed_model, CompactCompressedModel):
         save_compact_hwz(compressed_model, path)
+        compressed_model.payload_breakdown["metadata_bytes"] = len(
+            json.dumps(compressed_model.metadata, sort_keys=True).encode("utf-8")
+        )
         compressed_model.payload_breakdown["archive_total_bytes"] = Path(path).stat().st_size
         return
     destination = Path(path)

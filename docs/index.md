@@ -25,6 +25,10 @@ v0.3 adds compact mode with byte-packed binary streams, packed int4 tensor
 storage, payload breakdown reports, and a GPT-style benchmark script that
 measures actual `.hwz` archive size.
 
+v0.4 makes learned codebook mode the default compact tensor codec, adds uint4
+assignment packing, RLE assignment streams, grouped assignment sharing, and
+separate benchmark rows for codebook and packed-int4 compact modes.
+
 ## Notes
 
 The codec is intended for research and experimentation rather than guaranteed production compression.

@@ -104,9 +104,13 @@ and is 26,318 bytes on disk in the current zip-based archive format.
 ### Hyper Glyph Compact Mode
 
 Compact mode moves large payloads out of JSON and into binary streams inside the
-`.hwz` archive. It includes:
+`.hwz` archive. v0.4.0 makes learned codebook mode the default compact tensor
+codec. It includes:
 
 - Global codebook and packed assignment utilities for symbolic prototype experiments.
+- Uint4 assignment packing when the prototype count is 16 or lower.
+- Run-length encoding for repeated assignment patterns.
+- Grouped/blockwise assignment sharing through `assignment_group_size`.
 - Packed int4 tensor storage when it beats prototype mode on byte/error tradeoffs.
 - Float16 or float32 scale metadata, with per-tensor and per-channel scale modes.
 - Adaptive sparse residual budget helpers with delta-varint index encoding.
@@ -122,23 +126,25 @@ Measured on the deterministic synthetic GPT-style benchmark:
 | INT8 quantization | 229632 | 4.00x | 5.783329e-07 | 0.99996566 |
 | INT4 quantization | 114900 | 7.99x | 0.00016693089 | 0.99027589 |
 | Hyper Glyph standard | 759603 | 1.21x | 0.00028803079 | 0.97888187 |
-| Hyper Glyph compact | 123155 | 7.46x | 6.6366149e-05 | 0.99517650 |
+| Hyper Glyph compact codebook | 32225 | 28.50x | 0.0052734507 | 0.47573550 |
+| Hyper Glyph compact packed-int4 | 123155 | 7.46x | 6.6366149e-05 | 0.99517650 |
 
-Payload breakdown for `Hyper Glyph compact`:
+Payload breakdown for `Hyper Glyph compact codebook`:
 
 | Payload | Bytes |
 | --- | ---: |
-| metadata_bytes | 4706 |
-| prototype_bytes | 0 |
-| assignment_bytes | 114688 |
-| scale_bytes | 18432 |
+| metadata_bytes | 7251 |
+| prototype_bytes | 320 |
+| assignment_bytes | 7168 |
+| scale_bytes | 28672 |
 | residual_index_bytes | 0 |
 | residual_value_bytes | 0 |
-| archive_total_bytes | 123155 |
+| archive_total_bytes | 32225 |
 
-On this benchmark, compact mode beats plain INT4 reconstruction error but uses
-slightly more bytes because it stores per-channel scale metadata. INT4 can still
-win on raw ratio for some tensors.
+On this benchmark, v0.4 codebook mode massively reduces assignment bytes and
+archive size, but reconstruction quality is much worse than INT4. The packed-int4
+compact mode remains the quality-oriented path and beats plain INT4 MSE while
+using more bytes.
 
 ---
 
@@ -692,6 +698,6 @@ If you use Hyper Glyph in research, please cite:
   title={Hyper Glyph: Hyperdimensional Symbolic Residual Compression for Neural Network Weights},
   author={Robert McMenemy},
   year={2026},
-  version={0.3.0},
+  version={0.4.0},
 }
 ```

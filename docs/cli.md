@@ -53,3 +53,9 @@ Benchmark compact mode:
 ```bash
 hyperglyph benchmark model.pt --mode compact
 ```
+
+Benchmark a real Hugging Face model when `transformers` is installed:
+
+```bash
+python examples/benchmark_hyperglyph_vs_quant.py --model sshleifer/tiny-gpt2
+```

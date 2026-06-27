@@ -163,26 +163,54 @@ def main() -> int:
     )
 
     start = time.perf_counter()
-    compact = CompactHyperGlyphCodec(
+    compact_codebook = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            scale_mode="per_tensor",
+            target_ratio=args.target_ratio,
+            min_tensor_size=256,
+            compact_tensor_codec="codebook",
+            n_global_prototypes=16,
+            block_size=16,
+        )
+    )
+    compact_codebook_model = compact_codebook.compress_state_dict(state)
+    compact_codebook_restored = compact_codebook.decompress_state_dict(compact_codebook_model)
+    compact_codebook_path = output_dir / "benchmark_compact_codebook.hwz"
+    save_compressed(compact_codebook_model, compact_codebook_path)
+    rows.append(
+        row(
+            "Hyper Glyph compact codebook",
+            compact_codebook_path.stat().st_size,
+            fp32_bytes,
+            state,
+            compact_codebook_restored,
+            time.perf_counter() - start,
+        )
+    )
+
+    start = time.perf_counter()
+    compact_int4 = CompactHyperGlyphCodec(
         HyperGlyphConfig(
             mode="compact",
             scale_mode="per_channel",
             scale_dtype="float32",
             target_ratio=args.target_ratio,
             min_tensor_size=256,
+            compact_tensor_codec="packed_int4",
         )
     )
-    compact_model = compact.compress_state_dict(state)
-    compact_restored = compact.decompress_state_dict(compact_model)
-    compact_path = output_dir / "benchmark_compact.hwz"
-    save_compressed(compact_model, compact_path)
+    compact_int4_model = compact_int4.compress_state_dict(state)
+    compact_int4_restored = compact_int4.decompress_state_dict(compact_int4_model)
+    compact_int4_path = output_dir / "benchmark_compact_int4.hwz"
+    save_compressed(compact_int4_model, compact_int4_path)
     rows.append(
         row(
-            "Hyper Glyph compact",
-            compact_path.stat().st_size,
+            "Hyper Glyph compact packed-int4",
+            compact_int4_path.stat().st_size,
             fp32_bytes,
             state,
-            compact_restored,
+            compact_int4_restored,
             time.perf_counter() - start,
         )
     )
@@ -190,7 +218,7 @@ def main() -> int:
     report_md = markdown_table(rows)
     (output_dir / "benchmark_report.md").write_text(report_md, encoding="utf-8")
     (output_dir / "benchmark_report.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    breakdown = compact_model.payload_breakdown
+    breakdown = compact_codebook_model.payload_breakdown
     breakdown_md = "\n".join(
         ["| Payload | Bytes |", "| --- | ---: |"]
         + [f"| {key} | {value} |" for key, value in breakdown.items()]

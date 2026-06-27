@@ -49,10 +49,64 @@ def test_compact_gets_better_than_4x_on_synthetic(tmp_path) -> None:
 def test_compact_mse_is_finite_and_reasonable() -> None:
     state = _state_dict()
     codec = CompactHyperGlyphCodec(
-        HyperGlyphConfig(mode="compact", scale_mode="per_channel", min_tensor_size=4)
+        HyperGlyphConfig(
+            mode="compact",
+            scale_mode="per_channel",
+            min_tensor_size=4,
+            compact_tensor_codec="packed_int4",
+        )
     )
     compressed = codec.compress_state_dict(state)
     restored = codec.decompress_state_dict(compressed)
     report = codec.report(compressed, state, restored)
     assert np.isfinite(report.total_mse)
     assert report.total_mse < 1e-3
+
+
+def test_codebook_reduces_assignment_bytes_vs_packed_int4() -> None:
+    state = _state_dict()
+    int4_codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(mode="compact", compact_tensor_codec="packed_int4", min_tensor_size=4)
+    )
+    codebook_codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            compact_tensor_codec="codebook",
+            n_global_prototypes=16,
+            block_size=16,
+            min_tensor_size=4,
+        )
+    )
+    int4_model = int4_codec.compress_state_dict(state)
+    codebook_model = codebook_codec.compress_state_dict(state)
+
+    assert (
+        codebook_model.payload_breakdown["assignment_bytes"]
+        < int4_model.payload_breakdown["assignment_bytes"]
+    )
+    assert codebook_model.metadata["config"]["compact_tensor_codec"] == "codebook"
+
+
+def test_grouped_assignment_sharing_stores_fewer_assignments() -> None:
+    state = _state_dict()
+    ungrouped_codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            compact_tensor_codec="codebook",
+            assignment_group_size=1,
+            min_tensor_size=4,
+        )
+    )
+    grouped_codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            compact_tensor_codec="codebook",
+            assignment_group_size=4,
+            min_tensor_size=4,
+        )
+    )
+    ungrouped = ungrouped_codec.compress_state_dict(state)
+    grouped = grouped_codec.compress_state_dict(state)
+    ungrouped_count = sum(tensor["assignment_count"] for tensor in ungrouped.metadata["tensors"])
+    grouped_count = sum(tensor["assignment_count"] for tensor in grouped.metadata["tensors"])
+    assert grouped_count < ungrouped_count

@@ -1,0 +1,9 @@
+| Payload | Bytes |
+| --- | ---: |
+| metadata_bytes | 7251 |
+| prototype_bytes | 320 |
+| assignment_bytes | 7168 |
+| scale_bytes | 28672 |
+| residual_index_bytes | 0 |
+| residual_value_bytes | 0 |
+| archive_total_bytes | 32225 |

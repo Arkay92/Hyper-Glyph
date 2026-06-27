@@ -55,6 +55,7 @@ def save_compact_hwz(model: Any, path: str | Path) -> None:
                 "stored_bytes": len(encoded),
             }
             archive.writestr(filename, encoded)
+        model.metadata = metadata
         archive.writestr("metadata.json", json.dumps(metadata, indent=2, sort_keys=True))
 
 

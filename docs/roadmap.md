@@ -23,7 +23,7 @@
 - example compressed .hwz artifact
 - improved compression report
 
-## Version 0.3.0 - PyTorch integration
+## Version 0.3.0 - Compact archive
 
 - compact codec mode
 - packed binary archive streams
@@ -31,6 +31,14 @@
 - global prototype codebook helpers
 - adaptive residual budget helpers
 - GPT-style benchmark reports
+
+## Version 0.4.0 - Codebook assignments
+
+- learned compact codebook mode
+- uint4 assignment packing
+- RLE assignment encoding
+- grouped/blockwise assignment sharing
+- real open-model benchmark script path
 
 ## Future PyTorch integration
 

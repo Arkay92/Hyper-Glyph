@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- Added learned compact codebook mode as the default compact tensor codec.
+- Reduced GPT-style benchmark assignment bytes from 114,688 to 7,168 with uint4 assignment packing.
+- Added assignment run-length encoding helpers and automatic assignment encoding selection.
+- Added grouped assignment sharing configuration.
+- Added compact benchmark rows for codebook and packed-int4 modes.
+- Added v0.4 benchmark artifacts and payload breakdown reports.
+- Added real open-model benchmark path through `--model`, using Hugging Face `transformers` when installed.
+
 ## 0.3.0
 
 - Added compact codec mode with byte-packed binary streams.
