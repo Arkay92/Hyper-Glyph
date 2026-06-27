@@ -88,30 +88,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             target_ratio=args.target_ratio,
         )
         codec = HyperGlyphCodec(config)
-        compressed = codec.compress_state_dict(state_dict)
-        save_compressed(compressed, args.output)
+        compressed_model = codec.compress_state_dict(state_dict)
+        save_compressed(compressed_model, args.output)
         print(f"Saved compressed model to {args.output}")
         return 0
 
     if args.command == "decompress":
         if torch is None:
             raise SystemExit("PyTorch is required for the compress/decompress CLI commands")
-        compressed = load_compressed(args.input)
-        restored = HyperGlyphCodec().decompress_state_dict(compressed)
+        loaded_model = load_compressed(args.input)
+        restored = HyperGlyphCodec().decompress_state_dict(loaded_model)
         torch.save(restored, args.output)
         print(f"Restored state dict to {args.output}")
         return 0
 
     if args.command == "inspect":
-        compressed = load_compressed(args.input)
-        breakdown = getattr(compressed, "payload_breakdown", {})
+        inspected_model = load_compressed(args.input)
+        breakdown = getattr(inspected_model, "payload_breakdown", {})
         print(
             json.dumps(
                 {
-                    "format_version": compressed.format_version,
-                    "mode": getattr(compressed, "mode", "standard"),
-                    "tensor_count": len(getattr(compressed, "tensors", {}))
-                    or int(getattr(compressed, "metadata", {}).get("tensor_count", 0)),
+                    "format_version": inspected_model.format_version,
+                    "mode": getattr(inspected_model, "mode", "standard"),
+                    "tensor_count": len(getattr(inspected_model, "tensors", {}))
+                    or int(getattr(inspected_model, "metadata", {}).get("tensor_count", 0)),
                     "payload_breakdown": breakdown,
                 },
                 indent=2,

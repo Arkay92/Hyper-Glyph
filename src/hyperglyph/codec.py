@@ -142,10 +142,12 @@ class HyperGlyphCodec:
         flat = np.concatenate(reconstructed_blocks, axis=0)
         return restore_tensor_shape(flat[: int(np.prod(compressed.shape))], compressed.shape)
 
-    def compress_state_dict(self, state_dict: Mapping[str, Any]) -> CompressedModel:
+    def compress_state_dict(
+        self, state_dict: Mapping[str, Any]
+    ) -> CompressedModel | CompactCompressedModel:
         """Compress an entire state_dict."""
         if self.config.mode == "compact":
-            return CompactHyperGlyphCodec(self.config).compress_state_dict(state_dict)  # type: ignore[return-value]
+            return CompactHyperGlyphCodec(self.config).compress_state_dict(state_dict)
         compressed_tensors: dict[str, CompressedTensor] = {}
         for name, tensor in state_dict.items():
             if not self._should_compress(name, tensor):
@@ -156,7 +158,9 @@ class HyperGlyphCodec:
         payload = json.dumps({"tensors": list(compressed_tensors)}).encode("utf-8")
         return CompressedModel(tensors=compressed_tensors, payload=payload)
 
-    def decompress_state_dict(self, compressed_model: CompressedModel) -> dict[str, np.ndarray]:
+    def decompress_state_dict(
+        self, compressed_model: CompressedModel | CompactCompressedModel
+    ) -> dict[str, np.ndarray]:
         """Reconstruct a state_dict from compressed data."""
         if isinstance(compressed_model, CompactCompressedModel):
             return CompactHyperGlyphCodec(self.config).decompress_state_dict(compressed_model)
@@ -167,7 +171,7 @@ class HyperGlyphCodec:
 
     def report(
         self,
-        compressed_model: CompressedModel,
+        compressed_model: CompressedModel | CompactCompressedModel,
         original_state_dict: Mapping[str, Any] | None = None,
         restored_state_dict: Mapping[str, Any] | None = None,
     ) -> CompressionReport:

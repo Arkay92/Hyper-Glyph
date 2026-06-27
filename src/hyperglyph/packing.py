@@ -35,7 +35,7 @@ def pack_int4(values: np.ndarray) -> bytes:
 
 def unpack_int4(data: bytes, length: int) -> np.ndarray:
     """Unpack signed 4-bit values in [-8, 7]."""
-    unsigned = unpack_uint4(data, length).astype(np.int8)
+    unsigned: np.ndarray = unpack_uint4(data, length).astype(np.int8)
     return np.where(unsigned >= 8, unsigned - 16, unsigned).astype(np.int8)
 
 
