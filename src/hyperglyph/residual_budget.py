@@ -63,7 +63,7 @@ def allocate_residual_budget(
 
 def quantize_residual_values_int8(values: list[float] | np.ndarray) -> tuple[np.ndarray, float]:
     """Quantize residual values to int8 with one shared scale."""
-    arr = np.asarray(values, dtype=np.float32)
+    arr: np.ndarray = np.asarray(values, dtype=np.float32)
     if arr.size == 0:
         return np.asarray([], dtype=np.int8), 1.0
     scale = float(np.max(np.abs(arr)) / 127.0)
@@ -89,6 +89,8 @@ def encode_residual_stream(candidates: list[ResidualCandidate]) -> EncodedResidu
 
 def decode_residual_stream(stream: EncodedResidualStream) -> tuple[np.ndarray, np.ndarray]:
     """Decode sparse residual indices and dequantized values."""
-    indices = np.asarray(delta_decode(varint_decode(stream.index_bytes)), dtype=np.int64)
-    quantized = np.frombuffer(stream.value_bytes, dtype=np.int8).astype(np.float32)
+    indices: np.ndarray = np.asarray(
+        delta_decode(varint_decode(stream.index_bytes)), dtype=np.int64
+    )
+    quantized: np.ndarray = np.frombuffer(stream.value_bytes, dtype=np.int8).astype(np.float32)
     return indices, quantized * stream.scale

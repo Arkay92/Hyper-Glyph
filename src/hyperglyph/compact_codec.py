@@ -229,11 +229,11 @@ def decompress_tensor_prototype(
     zero_start = int(tensor_meta["zero_offset"])
     zero_end = zero_start + int(tensor_meta["zero_length"])
     values = streams["assignments"][value_start:value_end]
-    scales = np.frombuffer(
+    scales: np.ndarray = np.frombuffer(
         streams["scales"][scale_start:scale_end],
         dtype=scale_dtype,
     ).astype(np.float32)
-    zeros = np.frombuffer(
+    zeros: np.ndarray = np.frombuffer(
         streams["zero_points"][zero_start:zero_end],
         dtype=scale_dtype,
     ).astype(np.float32)

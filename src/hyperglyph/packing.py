@@ -18,8 +18,8 @@ def pack_uint4(values: np.ndarray) -> bytes:
 
 def unpack_uint4(data: bytes, length: int) -> np.ndarray:
     """Unpack unsigned 4-bit values."""
-    raw = np.frombuffer(data, dtype=np.uint8)
-    out = np.empty(raw.size * 2, dtype=np.uint8)
+    raw: np.ndarray = np.frombuffer(data, dtype=np.uint8)
+    out: np.ndarray = np.empty(raw.size * 2, dtype=np.uint8)
     out[0::2] = raw & 0x0F
     out[1::2] = (raw >> 4) & 0x0F
     return out[:length].copy()

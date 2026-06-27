@@ -103,7 +103,7 @@ def _affine_quantize(array: np.ndarray, bits: int, axis: int | None) -> Quantize
 
 
 def _affine_dequantize(payload: QuantizedArray) -> np.ndarray:
-    values = np.asarray(payload.values, dtype=np.float32).reshape(payload.shape)
+    values: np.ndarray = np.asarray(payload.values, dtype=np.float32).reshape(payload.shape)
     scale = _reshape_param(payload.scale, len(payload.shape), payload.axis)
     zero = _reshape_param(payload.zero_point, len(payload.shape), payload.axis)
     return values * scale + zero
