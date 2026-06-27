@@ -86,7 +86,9 @@ class HyperGlyphCodec:
         residuals: list[dict[str, Any]] = []
         for idx, block in enumerate(blocks):
             proto = reconstructed_prototypes[idx]
-            scale = float(np.linalg.norm(block) / max(np.linalg.norm(proto), 1e-6))
+            block_norm = float(np.linalg.norm(block))
+            proto_norm = max(float(np.linalg.norm(proto)), 1e-6)
+            scale = block_norm / proto_norm
             scales.append(scale)
             proto_scaled = proto * scale
             residual = compute_topk_residual(block, proto_scaled, self.config.residual_k)
