@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img width="256" height="256" alt="Hyper Glyph Logo" src="hyperglyph.png" />
+  <img width="256" height="256" alt="Hyper Glyph Logo" src="https://github.com/Arkay92/Hyper-Glyph/raw/main/hyperglyph.png" />
 </p>
 
 <p align="center">
