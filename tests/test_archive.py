@@ -33,5 +33,5 @@ def test_metadata_has_format_version_and_compact_mode(tmp_path) -> None:
     save_compressed(compressed, path)
     with zipfile.ZipFile(path) as archive:
         metadata = archive.read("metadata.json")
-    assert b'"format_version": "0.4"' in metadata
+    assert b'"format_version": "0.5"' in metadata
     assert b'"mode": "compact"' in metadata

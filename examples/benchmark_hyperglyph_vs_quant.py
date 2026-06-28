@@ -11,10 +11,9 @@ import numpy as np
 from hyperglyph import CompactHyperGlyphCodec, HyperGlyphCodec, HyperGlyphConfig
 from hyperglyph.metrics import cosine_weight_similarity, mae, max_abs_error, mse
 from hyperglyph.quantization import (
-    dequantize_int4_packed,
-    dequantize_int8,
-    quantize_int4_packed,
-    quantize_int8,
+    dequantize_uint_packed,
+    estimate_quantized_bytes,
+    quantize_uint_packed,
 )
 from hyperglyph.serialization import save_compressed
 
@@ -87,6 +86,10 @@ def markdown_table(rows: list[dict[str, Any]]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def quantized_size_bytes(state: dict[str, np.ndarray], bits: int) -> int:
+    return sum(estimate_quantized_bytes(array, bits=bits) for array in state.values())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", help="Hugging Face causal LM name")
@@ -117,33 +120,22 @@ def main() -> int:
         )
     )
 
-    start = time.perf_counter()
-    int8 = {name: dequantize_int8(quantize_int8(array)) for name, array in state.items()}
-    rows.append(
-        row(
-            "INT8 quantization",
-            sum(array.size for array in state.values()),
-            fp32_bytes,
-            state,
-            int8,
-            time.perf_counter() - start,
+    for bits in range(1, 9):
+        start = time.perf_counter()
+        restored = {
+            name: dequantize_uint_packed(quantize_uint_packed(array, bits=bits))
+            for name, array in state.items()
+        }
+        rows.append(
+            row(
+                f"INT{bits} quantization",
+                quantized_size_bytes(state, bits),
+                fp32_bytes,
+                state,
+                restored,
+                time.perf_counter() - start,
+            )
         )
-    )
-
-    start = time.perf_counter()
-    int4 = {
-        name: dequantize_int4_packed(quantize_int4_packed(array)) for name, array in state.items()
-    }
-    rows.append(
-        row(
-            "INT4 quantization",
-            sum((array.size + 1) // 2 + 4 for array in state.values()),
-            fp32_bytes,
-            state,
-            int4,
-            time.perf_counter() - start,
-        )
-    )
 
     start = time.perf_counter()
     standard = HyperGlyphCodec(HyperGlyphConfig(mode="standard", min_tensor_size=256))
@@ -190,6 +182,32 @@ def main() -> int:
     )
 
     start = time.perf_counter()
+    compact_auto = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            scale_mode="per_channel",
+            scale_dtype="float32",
+            target_ratio=args.target_ratio,
+            min_tensor_size=256,
+            compact_tensor_codec="auto",
+        )
+    )
+    compact_auto_model = compact_auto.compress_state_dict(state)
+    compact_auto_restored = compact_auto.decompress_state_dict(compact_auto_model)
+    compact_auto_path = output_dir / "benchmark_compact_auto.hwz"
+    save_compressed(compact_auto_model, compact_auto_path)
+    rows.append(
+        row(
+            "Hyper Glyph compact auto",
+            compact_auto_path.stat().st_size,
+            fp32_bytes,
+            state,
+            compact_auto_restored,
+            time.perf_counter() - start,
+        )
+    )
+
+    start = time.perf_counter()
     compact_int4 = CompactHyperGlyphCodec(
         HyperGlyphConfig(
             mode="compact",
@@ -218,7 +236,7 @@ def main() -> int:
     report_md = markdown_table(rows)
     (output_dir / "benchmark_report.md").write_text(report_md, encoding="utf-8")
     (output_dir / "benchmark_report.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    breakdown = compact_codebook_model.payload_breakdown
+    breakdown = compact_auto_model.payload_breakdown
     breakdown_md = "\n".join(
         ["| Payload | Bytes |", "| --- | ---: |"]
         + [f"| {key} | {value} |" for key, value in breakdown.items()]

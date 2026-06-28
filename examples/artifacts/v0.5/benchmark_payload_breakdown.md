@@ -1,0 +1,13 @@
+| Payload | Bytes |
+| --- | ---: |
+| metadata_bytes | 6896 |
+| prototype_bytes | 0 |
+| assignment_bytes | 0 |
+| scale_bytes | 18464 |
+| residual_index_bytes | 0 |
+| residual_value_bytes | 0 |
+| low_rank_bytes | 0 |
+| raw_value_bytes | 114944 |
+| sparse_index_bytes | 0 |
+| sparse_value_bytes | 0 |
+| archive_total_bytes | 123776 |

@@ -4,10 +4,12 @@ from hyperglyph.packing import (
     choose_min_uint_dtype,
     delta_decode,
     delta_encode,
+    pack_bits,
     pack_int4,
     pack_uint4,
     rle_decode_uint,
     rle_encode_uint,
+    unpack_bits,
     unpack_int4,
     unpack_uint4,
     varint_decode,
@@ -23,6 +25,12 @@ def test_uint4_roundtrip_even_length() -> None:
 def test_uint4_roundtrip_odd_length() -> None:
     values = np.array([0, 7, 15], dtype=np.uint8)
     assert np.array_equal(unpack_uint4(pack_uint4(values), len(values)), values)
+
+
+def test_pack_bits_roundtrip_all_quantization_widths() -> None:
+    for bits in range(1, 9):
+        values = np.arange(33, dtype=np.uint8) % (1 << bits)
+        assert np.array_equal(unpack_bits(pack_bits(values, bits), bits, len(values)), values)
 
 
 def test_int4_signed_roundtrip() -> None:

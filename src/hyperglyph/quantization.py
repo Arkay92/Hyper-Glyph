@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .packing import pack_uint4, unpack_uint4
+from .packing import pack_bits, unpack_bits
 
 
 @dataclass(slots=True)
@@ -49,15 +49,27 @@ def dequantize_int8(payload: QuantizedArray) -> np.ndarray:
 
 def quantize_int4_packed(array: np.ndarray, axis: int | None = None) -> QuantizedArray:
     """Affine quantize an array to packed unsigned int4."""
-    payload = _affine_quantize(array, bits=4, axis=axis)
-    payload.values = pack_uint4(np.asarray(payload.values, dtype=np.uint8))
-    return payload
+    return quantize_uint_packed(array, bits=4, axis=axis)
 
 
 def dequantize_int4_packed(payload: QuantizedArray) -> np.ndarray:
     """Dequantize a packed unsigned int4 payload."""
+    return dequantize_uint_packed(payload)
+
+
+def quantize_uint_packed(array: np.ndarray, bits: int, axis: int | None = None) -> QuantizedArray:
+    """Affine quantize an array and pack unsigned integer values at 1-8 bits."""
+    payload = _affine_quantize(array, bits=bits, axis=axis)
+    payload.values = pack_bits(np.asarray(payload.values, dtype=np.uint8), bits=bits)
+    return payload
+
+
+def dequantize_uint_packed(payload: QuantizedArray) -> np.ndarray:
+    """Dequantize an affine payload packed with fixed-width unsigned integers."""
     length = int(np.prod(payload.shape))
-    values = unpack_uint4(bytes(payload.values), length).reshape(payload.shape)
+    values = unpack_bits(bytes(payload.values), bits=payload.bits, length=length).reshape(
+        payload.shape
+    )
     unpacked = QuantizedArray(
         values=values,
         scale=payload.scale,
@@ -72,12 +84,16 @@ def dequantize_int4_packed(payload: QuantizedArray) -> np.ndarray:
 def estimate_quantized_bytes(array: np.ndarray, bits: int, axis: int | None = None) -> int:
     """Estimate bytes for affine quantized values plus scale/zero-point metadata."""
     array = np.asarray(array)
+    if bits < 1 or bits > 8:
+        raise ValueError("bits must be in [1, 8]")
     value_bytes = (array.size * bits + 7) // 8
     n_scales = 1 if axis is None else int(array.shape[axis])
-    return value_bytes + n_scales * 4
+    return value_bytes + n_scales * 8
 
 
 def _affine_quantize(array: np.ndarray, bits: int, axis: int | None) -> QuantizedArray:
+    if bits < 1 or bits > 8:
+        raise ValueError("bits must be in [1, 8]")
     array = np.asarray(array, dtype=np.float32)
     qmax = (2**bits) - 1
     if axis is None or array.ndim == 0:

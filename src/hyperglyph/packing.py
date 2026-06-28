@@ -5,24 +5,57 @@ from __future__ import annotations
 import numpy as np
 
 
+def pack_bits(values: np.ndarray, bits: int) -> bytes:
+    """Pack unsigned integer values using a fixed number of bits per value."""
+    if bits < 1 or bits > 8:
+        raise ValueError("bits must be in [1, 8]")
+    arr: np.ndarray = np.asarray(values, dtype=np.uint8).reshape(-1)
+    max_value = (1 << bits) - 1
+    if np.any(arr > max_value):
+        raise ValueError(f"packed values must be in [0, {max_value}]")
+
+    encoded = bytearray((arr.size * bits + 7) // 8)
+    bit_offset = 0
+    for value in arr:
+        current = int(value)
+        byte_index = bit_offset // 8
+        shift = bit_offset % 8
+        encoded[byte_index] |= (current << shift) & 0xFF
+        spill = shift + bits - 8
+        if spill > 0:
+            encoded[byte_index + 1] |= current >> (bits - spill)
+        bit_offset += bits
+    return bytes(encoded)
+
+
+def unpack_bits(data: bytes, bits: int, length: int) -> np.ndarray:
+    """Unpack fixed-width unsigned integer values."""
+    if bits < 1 or bits > 8:
+        raise ValueError("bits must be in [1, 8]")
+    raw: np.ndarray = np.frombuffer(data, dtype=np.uint8)
+    out: np.ndarray = np.empty(length, dtype=np.uint8)
+    mask = (1 << bits) - 1
+    bit_offset = 0
+    for index in range(length):
+        byte_index = bit_offset // 8
+        shift = bit_offset % 8
+        value = int(raw[byte_index]) >> shift
+        spill = shift + bits - 8
+        if spill > 0 and byte_index + 1 < raw.size:
+            value |= int(raw[byte_index + 1]) << (bits - spill)
+        out[index] = value & mask
+        bit_offset += bits
+    return out
+
+
 def pack_uint4(values: np.ndarray) -> bytes:
     """Pack unsigned 4-bit values, two values per byte."""
-    arr: np.ndarray = np.asarray(values, dtype=np.uint8).reshape(-1)
-    if np.any(arr > 15):
-        raise ValueError("uint4 values must be in [0, 15]")
-    if arr.size % 2:
-        arr = np.concatenate([arr, np.zeros(1, dtype=np.uint8)])
-    packed: np.ndarray = (arr[0::2] & 0x0F) | ((arr[1::2] & 0x0F) << 4)
-    return packed.astype(np.uint8).tobytes()
+    return pack_bits(values, bits=4)
 
 
 def unpack_uint4(data: bytes, length: int) -> np.ndarray:
     """Unpack unsigned 4-bit values."""
-    raw: np.ndarray = np.frombuffer(data, dtype=np.uint8)
-    out: np.ndarray = np.empty(raw.size * 2, dtype=np.uint8)
-    out[0::2] = raw & 0x0F
-    out[1::2] = (raw >> 4) & 0x0F
-    return out[:length].copy()
+    return unpack_bits(data, bits=4, length=length)
 
 
 def pack_int4(values: np.ndarray) -> bytes:

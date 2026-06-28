@@ -9,10 +9,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Arkay92/Hyper-Glyph/actions/workflows/publish.yml"><img alt="Publish" src="https://github.com/Arkay92/Hyper-Glyph/actions/workflows/publish.yml/badge.svg" /></a>
   <a href="https://pypi.org/project/hyperglyph-codec/"><img alt="PyPI" src="https://img.shields.io/pypi/v/hyperglyph-codec.svg" /></a>
   <img alt="Python" src="https://img.shields.io/pypi/pyversions/hyperglyph-codec.svg" />
   <img alt="License" src="https://img.shields.io/pypi/l/hyperglyph-codec.svg" />
-  <img alt="Status" src="https://img.shields.io/badge/status-alpha-orange.svg" />
+  <img alt="Downloads" src="https://img.shields.io/pypi/dm/hyperglyph-codec.svg" />
 </p>
 
 > **Package name:** `hyperglyph-codec`  
@@ -32,7 +33,7 @@
 - **Optional PyTorch support** for loading, compressing, restoring, and benchmarking `.pt` state dicts.
 - **`.hwz` serialization** for saving compressed models as portable archives.
 - **Compression reports** with size ratio, tensor counts, and reconstruction error metrics.
-- **Markdown benchmark export** with FP32, FP16 estimate, INT8 estimate, and Hyper Glyph comparisons.
+- **Markdown benchmark export** with FP32, FP16, INT1 through INT8, and Hyper Glyph comparisons.
 - **A small CLI** for compressing, decompressing, inspecting, and benchmarking model archives.
 - **Typed Python API** designed for research, experimentation, and extension.
 
@@ -87,7 +88,9 @@ testing ideas around hyperdimensional and symbolic weight compression rather
 than guaranteed production compression.
 
 Hyper Glyph v0.3.0 adds **compact mode**, a byte-packed archive path focused on
-actual stored bytes rather than theoretical payload estimates.
+actual stored bytes rather than theoretical payload estimates. Hyper Glyph
+v0.6.0 extends the benchmark harness across scalar quantization bit widths from
+1 through 8 bits.
 
 Sample v0.2.0 benchmark from `examples/artifacts/sample-v0.2-benchmark.md`:
 
@@ -104,47 +107,96 @@ and is 26,318 bytes on disk in the current zip-based archive format.
 ### Hyper Glyph Compact Mode
 
 Compact mode moves large payloads out of JSON and into binary streams inside the
-`.hwz` archive. v0.4.0 makes learned codebook mode the default compact tensor
-codec. It includes:
+`.hwz` archive. v0.6.0 keeps `compact_tensor_codec="auto"` as the default, so
+each tensor can choose the best candidate for its byte/error tradeoff. It
+includes:
 
 - Global codebook and packed assignment utilities for symbolic prototype experiments.
+- Packed affine scalar quantization baselines for INT1 through INT8.
 - Uint4 assignment packing when the prototype count is 16 or lower.
 - Run-length encoding for repeated assignment patterns.
 - Grouped/blockwise assignment sharing through `assignment_group_size`.
 - Packed int4 tensor storage when it beats prototype mode on byte/error tradeoffs.
+- Low-rank int8 and low-rank plus sparse residual candidates.
+- Sparse tensor and raw int8 candidates for small or structured tensors.
+- Block-codebook plus sparse residual candidates.
 - Float16 or float32 scale metadata, with per-tensor and per-channel scale modes.
 - Adaptive sparse residual budget helpers with delta-varint index encoding.
 - Optional zstd compression for binary streams via `hyperglyph-codec[compression]`.
 - Payload breakdown reporting for metadata, assignments, scales, residuals, and archive size.
 
-Measured on the deterministic synthetic GPT-style benchmark:
+Measured on the deterministic synthetic GPT-style benchmark in
+`examples/artifacts/v0.6/benchmark_report.md`:
 
 | Method | Bytes | Ratio | MSE | Cosine |
 | --- | ---: | ---: | ---: | ---: |
 | FP32 | 918528 | 1.00x | 0 | 1.00000004 |
 | FP16 quantization | 459264 | 2.00x | 2.9432538e-10 | 0.99999992 |
-| INT8 quantization | 229632 | 4.00x | 5.783329e-07 | 0.99996566 |
-| INT4 quantization | 114900 | 7.99x | 0.00016693089 | 0.99027589 |
+| INT1 quantization | 28872 | 31.81x | 0.073967011 | 0.81135406 |
+| INT2 quantization | 57576 | 15.95x | 0.0044553082 | 0.84468936 |
+| INT3 quantization | 86280 | 10.65x | 0.00077001884 | 0.95792332 |
+| INT4 quantization | 114984 | 7.99x | 0.00016693089 | 0.99027589 |
+| INT5 quantization | 143688 | 6.39x | 3.9213638e-05 | 0.99768398 |
+| INT6 quantization | 172392 | 5.33x | 9.4796408e-06 | 0.99943803 |
+| INT7 quantization | 201096 | 4.57x | 2.3378236e-06 | 0.99986133 |
+| INT8 quantization | 229800 | 4.00x | 5.783329e-07 | 0.99996566 |
 | Hyper Glyph standard | 759603 | 1.21x | 0.00028803079 | 0.97888187 |
-| Hyper Glyph compact codebook | 32225 | 28.50x | 0.0052734507 | 0.47573550 |
+| Hyper Glyph compact codebook | 32226 | 28.50x | 0.0052734507 | 0.47573550 |
+| Hyper Glyph compact auto | 123776 | 7.42x | 6.6366149e-05 | 0.99609527 |
 | Hyper Glyph compact packed-int4 | 123155 | 7.46x | 6.6366149e-05 | 0.99517650 |
 
-Payload breakdown for `Hyper Glyph compact codebook`:
+Payload breakdown for `Hyper Glyph compact auto`:
 
 | Payload | Bytes |
 | --- | ---: |
-| metadata_bytes | 7251 |
-| prototype_bytes | 320 |
-| assignment_bytes | 7168 |
-| scale_bytes | 28672 |
+| metadata_bytes | 6896 |
+| prototype_bytes | 0 |
+| assignment_bytes | 0 |
+| scale_bytes | 18464 |
 | residual_index_bytes | 0 |
 | residual_value_bytes | 0 |
-| archive_total_bytes | 32225 |
+| low_rank_bytes | 0 |
+| raw_value_bytes | 114944 |
+| sparse_index_bytes | 0 |
+| sparse_value_bytes | 0 |
+| archive_total_bytes | 123776 |
 
-On this benchmark, v0.4 codebook mode massively reduces assignment bytes and
-archive size, but reconstruction quality is much worse than INT4. The packed-int4
-compact mode remains the quality-oriented path and beats plain INT4 MSE while
-using more bytes.
+On this benchmark, codebook mode massively reduces archive size but has poor
+error. Auto mode selects the quality-oriented packed-int4 candidate for these
+random GPT-style tensors, beats plain INT4 MSE, and reports packed value bytes
+separately from true codebook assignment bytes.
+
+### Beyond Scalar Quantization
+
+Standard INT4 and INT8 quantization round weights independently. The stronger
+compression literature usually combines vector quantization, pruning, and
+lossless coding to push practical storage toward the 1- to 2-bit regime without
+accepting the error profile of naive rounding.
+
+- **Extreme vector quantization:** learned dictionaries encode groups of weights
+  as shared vectors or codewords instead of independent scalars. AQLM uses
+  additive learned codebooks to keep language-model weight compression
+  competitive below 3 bits per parameter. QuIP# uses randomized Hadamard mixing
+  and high-dimensional lattice codebooks such as E8 for strong results at
+  4 bits per weight and below.
+- **Pruning and sparsity:** pruning removes redundant weights rather than only
+  lowering their precision. Semi-structured 2:4 sparsity stores two non-zero
+  weights per group of four and maps to supported neural cores. SparseGPT uses
+  second-order approximations to remove unstructured weights while compensating
+  for the dropped connections.
+- **Entropy and lossless encoding:** quantized weights and assignments are not
+  uniformly distributed, so Huffman, ANS, range coding, or zstd-style compression
+  can reduce archive bytes further. EntroLLM-style entropy coding targets
+  frequent patterns with shorter codes. Delta methods such as BitDelta and
+  SVD-based deltas store only fine-tuning differences from a base model, often
+  in 1- or 2-bit form.
+
+Hyper Glyph v0.6.0 does not claim full AQLM, QuIP#, SparseGPT, or EntroLLM
+implementations. It implements the practical building blocks needed to compare
+against them: learned block codebooks, sparse residual repair, low-rank plus
+residual candidates, grouped assignments, run-length and delta-varint streams,
+optional zstd archive compression, and benchmark rows across every scalar bit
+width from INT1 through INT8.
 
 ---
 
@@ -641,7 +693,7 @@ examples/
   compress_mlp.py         # PyTorch MLP compression example
   compress_state_dict.py  # NumPy state dict compression example
   mnist_demo.py           # MNIST-oriented demo
-  benchmark_hyperglyph_vs_quant.py # FP32/FP16/INT8/INT4/Hyper Glyph benchmark
+  benchmark_hyperglyph_vs_quant.py # FP32/FP16/INT1-INT8/Hyper Glyph benchmark
   artifacts/
     sample-v0.2.hwz       # Example compressed archive
     sample-v0.2-benchmark.md # Markdown benchmark report
@@ -698,6 +750,6 @@ If you use Hyper Glyph in research, please cite:
   title={Hyper Glyph: Hyperdimensional Symbolic Residual Compression for Neural Network Weights},
   author={Robert McMenemy},
   year={2026},
-  version={0.4.0},
+  version={0.6.0},
 }
 ```

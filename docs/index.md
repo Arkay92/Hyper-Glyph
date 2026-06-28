@@ -29,6 +29,10 @@ v0.4 makes learned codebook mode the default compact tensor codec, adds uint4
 assignment packing, RLE assignment streams, grouped assignment sharing, and
 separate benchmark rows for codebook and packed-int4 compact modes.
 
+v0.5 makes compact mode a per-tensor codec portfolio. It evaluates packed-int4,
+codebook, low-rank, low-rank plus residual, sparse, and raw-int8 candidates, then
+selects the best byte/error tradeoff.
+
 ## Notes
 
 The codec is intended for research and experimentation rather than guaranteed production compression.

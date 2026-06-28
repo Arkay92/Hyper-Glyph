@@ -31,6 +31,8 @@ Configuration for the codec.
 - payload breakdown metadata
 - learned codebook mode
 - packed-int4 mode
+- low-rank int8 candidates
+- sparse and raw-int8 candidates
 
 ## Serialization helpers
 

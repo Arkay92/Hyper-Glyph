@@ -113,7 +113,7 @@ class CompactHyperGlyphCodec:
         }
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.5.0",
+            "codec_version": "0.6.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,
@@ -175,7 +175,7 @@ class CompactHyperGlyphCodec:
         frozen_streams = {name: bytes(data) for name, data in streams.items()}
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.5.0",
+            "codec_version": "0.6.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,
@@ -221,7 +221,7 @@ class CompactHyperGlyphCodec:
             return CompactCompressedModel(
                 metadata={
                     "format_version": "0.5",
-                    "codec_version": "0.5.0",
+                    "codec_version": "0.6.0",
                     "mode": "compact",
                     "tensor_count": 0,
                     "skipped_tensors": skipped,
@@ -308,7 +308,7 @@ class CompactHyperGlyphCodec:
         }
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.5.0",
+            "codec_version": "0.6.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,

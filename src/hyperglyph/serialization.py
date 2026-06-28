@@ -59,6 +59,10 @@ def load_compressed(path: str | Path) -> CompressedModel | CompactCompressedMode
                 + len(streams.get("zero_points", b"")),
                 "residual_index_bytes": len(streams.get("residual_indices", b"")),
                 "residual_value_bytes": len(streams.get("residual_values", b"")),
+                "low_rank_bytes": len(streams.get("low_rank", b"")),
+                "raw_value_bytes": len(streams.get("raw_values", b"")),
+                "sparse_index_bytes": len(streams.get("sparse_indices", b"")),
+                "sparse_value_bytes": len(streams.get("sparse_values", b"")),
                 "archive_total_bytes": archive_path.stat().st_size,
             }
             return CompactCompressedModel(

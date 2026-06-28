@@ -27,5 +27,9 @@ RLE is selected when it is smaller. This greatly reduces assignment bytes, but
 the packed-int4 path remains better for reconstruction quality on random
 GPT-style synthetic weights.
 
+In v0.5, compact mode defaults to `auto`, a per-tensor portfolio selector. Each
+eligible tensor is compressed with candidate codecs, reconstructed, scored by
+actual encoded bytes and MSE, then stored with the best byte/error tradeoff.
+
 The implementation is intentionally simple and leaves room for learned decoders
 and richer codecs later.

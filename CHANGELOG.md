@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0
+
+- Added packed affine scalar quantization baselines across every integer bit width from 1 to 8 bits.
+- Added generic fixed-width bit packing helpers used by uint4 and benchmark quantization paths.
+- Added v0.6 benchmark artifacts that compare Hyper Glyph against FP16 and INT1 through INT8.
+- Documented how Hyper Glyph relates to extreme vector quantization, pruning/sparsity, entropy coding, and delta compression research.
+- Bumped the package version to 0.6.0 while keeping the compact archive format compatible with v0.5 readers.
+
+## 0.5.0
+
+- Added benchmark-driven per-tensor codec selection with `compact_tensor_codec="auto"`.
+- Added low-rank int8 tensor candidates and low-rank plus sparse residual candidates.
+- Added sparse tensor and raw int8 candidates for small/skipped tensors.
+- Added block-codebook plus sparse residual candidates.
+- Moved packed-int4 tensor payload bytes out of `assignment_bytes` and into `raw_value_bytes`.
+- Added compact auto benchmark row and v0.5 benchmark artifacts.
+- Bumped default compact mode to the codec portfolio selector.
+
 ## 0.4.0
 
 - Added learned compact codebook mode as the default compact tensor codec.

@@ -110,3 +110,35 @@ def test_grouped_assignment_sharing_stores_fewer_assignments() -> None:
     ungrouped_count = sum(tensor["assignment_count"] for tensor in ungrouped.metadata["tensors"])
     grouped_count = sum(tensor["assignment_count"] for tensor in grouped.metadata["tensors"])
     assert grouped_count < ungrouped_count
+
+
+def test_low_rank_codec_roundtrips_low_rank_matrix() -> None:
+    rng = np.random.default_rng(7)
+    left = rng.normal(size=(32, 4)).astype(np.float32)
+    right = rng.normal(size=(4, 32)).astype(np.float32)
+    state = {"proj.weight": left @ right}
+    codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(
+            mode="compact",
+            compact_tensor_codec="low_rank",
+            low_rank_values=(4,),
+            min_tensor_size=4,
+        )
+    )
+    compressed = codec.compress_state_dict(state)
+    restored = codec.decompress_state_dict(compressed)
+    assert compressed.metadata["tensors"][0]["codec"].startswith("low_rank")
+    assert restored["proj.weight"].shape == state["proj.weight"].shape
+
+
+def test_auto_mode_keeps_packed_tensor_values_out_of_assignment_bytes() -> None:
+    state = _state_dict()
+    codec = CompactHyperGlyphCodec(
+        HyperGlyphConfig(mode="compact", compact_tensor_codec="auto", min_tensor_size=4)
+    )
+    compressed = codec.compress_state_dict(state)
+    assert compressed.payload_breakdown["raw_value_bytes"] > 0
+    assert (
+        compressed.payload_breakdown["assignment_bytes"]
+        < compressed.payload_breakdown["raw_value_bytes"]
+    )

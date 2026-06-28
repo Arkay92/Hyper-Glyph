@@ -40,6 +40,15 @@
 - grouped/blockwise assignment sharing
 - real open-model benchmark script path
 
+## Version 0.5.0 - Codec portfolio
+
+- per-tensor codec search
+- low-rank int8 candidate
+- low-rank plus sparse residual candidate
+- sparse tensor candidate
+- raw int8 candidate
+- benchmark-driven compact auto default
+
 ## Future PyTorch integration
 
 - compress_model(model)
