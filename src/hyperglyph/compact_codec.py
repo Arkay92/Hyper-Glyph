@@ -673,7 +673,7 @@ def _candidate_raw_quantized(name: str, array: np.ndarray) -> TensorCandidate:
 
 def _candidate_sparse(name: str, array: np.ndarray) -> TensorCandidate | None:
     flat = array.reshape(-1)
-    nonzero = np.flatnonzero(np.abs(flat) > 1e-12).astype(np.int64)
+    nonzero: np.ndarray = np.flatnonzero(np.abs(flat) > 1e-12).astype(np.int64)
     if nonzero.size > flat.size * 0.2:
         return None
     values = flat[nonzero].astype(np.float16)
