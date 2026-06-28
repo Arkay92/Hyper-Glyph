@@ -605,7 +605,7 @@ def _candidate_low_rank(
         right_restored = dequantize_int8(q_right)
         restored = left_restored @ right_restored
         low_rank_bytes = bytes(q_left.values) + bytes(q_right.values)
-        scales = np.asarray(
+        scales: np.ndarray = np.asarray(
             [
                 float(np.asarray(q_left.scale).reshape(-1)[0]),
                 float(np.asarray(q_left.zero_point).reshape(-1)[0]),
@@ -644,7 +644,7 @@ def _candidate_low_rank(
 def _candidate_raw_quantized(name: str, array: np.ndarray) -> TensorCandidate:
     payload = quantize_int8(array)
     values = bytes(payload.values)
-    params = np.asarray(
+    params: np.ndarray = np.asarray(
         [
             float(np.asarray(payload.scale).reshape(-1)[0]),
             float(np.asarray(payload.zero_point).reshape(-1)[0]),
@@ -972,8 +972,12 @@ def decompress_tensor_low_rank(
     scale_start = int(tensor_meta["scale_offset"])
     scale_end = scale_start + int(tensor_meta["scale_length"])
     params: np.ndarray = np.frombuffer(streams["scales"][scale_start:scale_end], dtype=np.float32)
-    u_values = np.frombuffer(streams["low_rank"][u_start:u_end], dtype=np.uint8).reshape(u_shape)
-    v_values = np.frombuffer(streams["low_rank"][v_start:v_end], dtype=np.uint8).reshape(v_shape)
+    u_values: np.ndarray = np.frombuffer(
+        streams["low_rank"][u_start:u_end], dtype=np.uint8
+    ).reshape(u_shape)
+    v_values: np.ndarray = np.frombuffer(
+        streams["low_rank"][v_start:v_end], dtype=np.uint8
+    ).reshape(v_shape)
     left = (u_values.astype(np.float32) * params[0]) + params[1]
     right = (v_values.astype(np.float32) * params[2]) + params[3]
     restored = left @ right
@@ -990,7 +994,9 @@ def decompress_tensor_raw_int8(
     scale_start = int(tensor_meta["scale_offset"])
     scale_end = scale_start + int(tensor_meta["scale_length"])
     params: np.ndarray = np.frombuffer(streams["scales"][scale_start:scale_end], dtype=np.float32)
-    values = np.frombuffer(streams["raw_values"][start:end], dtype=np.uint8).reshape(shape)
+    values: np.ndarray = np.frombuffer(streams["raw_values"][start:end], dtype=np.uint8).reshape(
+        shape
+    )
     return (values.astype(np.float32) * params[0]) + params[1]
 
 
@@ -1003,8 +1009,12 @@ def decompress_tensor_sparse(
     index_end = index_start + int(tensor_meta["sparse_index_length"])
     value_start = int(tensor_meta["sparse_value_offset"])
     value_end = value_start + int(tensor_meta["sparse_value_length"])
-    indices = np.frombuffer(streams["sparse_indices"][index_start:index_end], dtype=np.uint32)
-    values = np.frombuffer(streams["sparse_values"][value_start:value_end], dtype=np.float16)
+    indices: np.ndarray = np.frombuffer(
+        streams["sparse_indices"][index_start:index_end], dtype=np.uint32
+    )
+    values: np.ndarray = np.frombuffer(
+        streams["sparse_values"][value_start:value_end], dtype=np.float16
+    )
     restored: np.ndarray = np.zeros(int(np.prod(shape)), dtype=np.float32)
     restored[indices.astype(np.int64)] = values.astype(np.float32)
     return restored.reshape(shape)
