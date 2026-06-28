@@ -543,7 +543,7 @@ def _candidate_block_codebook(
     proto_values, proto_scales = _quantize_prototypes_int8(prototypes)
     prototype_stream = proto_values.tobytes() + proto_scales.astype(np.float32).tobytes()
     scale_dtype = np.float16 if config.scale_dtype == "float16" else np.float32
-    scale_values = scales.astype(scale_dtype)
+    scale_values: np.ndarray = scales.astype(scale_dtype)
     assignments_payload, assignment_encoding = _encode_assignments(
         grouped, len(prototypes), config.assignment_encoding
     )
@@ -1005,7 +1005,7 @@ def decompress_tensor_sparse(
     value_end = value_start + int(tensor_meta["sparse_value_length"])
     indices = np.frombuffer(streams["sparse_indices"][index_start:index_end], dtype=np.uint32)
     values = np.frombuffer(streams["sparse_values"][value_start:value_end], dtype=np.float16)
-    restored = np.zeros(int(np.prod(shape)), dtype=np.float32)
+    restored: np.ndarray = np.zeros(int(np.prod(shape)), dtype=np.float32)
     restored[indices.astype(np.int64)] = values.astype(np.float32)
     return restored.reshape(shape)
 
