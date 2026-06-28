@@ -29,7 +29,7 @@ def test_uint4_roundtrip_odd_length() -> None:
 
 def test_pack_bits_roundtrip_all_quantization_widths() -> None:
     for bits in range(1, 9):
-        values = np.arange(33, dtype=np.uint8) % (1 << bits)
+        values = (np.arange(33, dtype=np.uint16) % (1 << bits)).astype(np.uint8)
         assert np.array_equal(unpack_bits(pack_bits(values, bits), bits, len(values)), values)
 
 
