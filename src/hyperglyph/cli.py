@@ -210,9 +210,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "perplexity":
-        config: HyperGlyphConfig | None = None
+        perplexity_config: HyperGlyphConfig | None = None
         if args.decompressed:
-            config = HyperGlyphConfig(mode="compact", compact_tensor_codec="auto")
+            perplexity_config = HyperGlyphConfig(mode="compact", compact_tensor_codec="auto")
         result = evaluate_perplexity(
             model_name=args.model,
             dataset_name=args.dataset,
@@ -220,7 +220,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             split=args.split,
             max_samples=args.max_samples,
             sequence_length=args.sequence_length,
-            compression_config=config,
+            compression_config=perplexity_config,
         )
         print(json.dumps(asdict(result), indent=2))
         return 0
