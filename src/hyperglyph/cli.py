@@ -16,6 +16,8 @@ from .benchmark import benchmark_state_dict
 from .codec import HyperGlyphCodec
 from .config import HyperGlyphConfig
 from .evaluation import (
+    AblationResult,
+    TensorError,
     available_strong_quantization_libraries,
     evaluate_perplexity,
     run_ablation_study,
@@ -176,8 +178,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit("PyTorch is required for analyze CLI commands")
         original = torch.load(args.original, map_location="cpu")
         restored = torch.load(args.restored, map_location="cpu")
-        rows = tensor_error_analysis(original, restored)
-        markdown = tensor_error_markdown(rows, limit=args.limit)
+        tensor_rows: list[TensorError] = tensor_error_analysis(original, restored)
+        markdown = tensor_error_markdown(tensor_rows, limit=args.limit)
         if args.markdown_output:
             with open(args.markdown_output, "w", encoding="utf-8") as handle:
                 handle.write(markdown)
@@ -189,12 +191,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit("PyTorch is required for ablation CLI commands")
         state_dict = torch.load(args.input, map_location="cpu")
         selected = set(args.names) if args.names else None
-        rows = run_ablation_study(state_dict, names=selected)
+        ablation_rows: list[AblationResult] = run_ablation_study(state_dict, names=selected)
         markdown_lines = [
             "| Ablation | Bytes | Ratio vs FP32 | MSE | MAE | Max Abs Error | Tensors |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
-        for row in rows:
+        for row in ablation_rows:
             markdown_lines.append(
                 f"| {row.name} | {row.compressed_bytes} | {row.ratio_vs_fp32:.2f}x | "
                 f"{row.mse:.8g} | {row.mae:.8g} | {row.max_abs_error:.8g} | "
@@ -208,7 +210,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "perplexity":
-        config = None
+        config: HyperGlyphConfig | None = None
         if args.decompressed:
             config = HyperGlyphConfig(mode="compact", compact_tensor_codec="auto")
         result = evaluate_perplexity(
