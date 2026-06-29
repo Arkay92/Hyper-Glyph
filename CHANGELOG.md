@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0
+
+- Added optional perplexity evaluation for WikiText-2/C4-style text subsets through `evaluate_perplexity`.
+- Added the open-model evaluation suite names for DistilGPT2, GPT-Neo 125M, OPT-125M, Pythia 70M, and TinyLlama 1.1B.
+- Added tensor-wise/layer-wise reconstruction error analysis and markdown export helpers.
+- Added ablation study helpers for residuals, codebook size, block size, and scale mode.
+- Added decompressed inference logit comparison helpers.
+- Added optional detection hooks for stronger GPTQ/AWQ/SmoothQuant-style quantization libraries.
+- Added auto-selector guardrails for codebook and SVD candidate search to reduce runtime on large tensors.
+- Added `examples/evaluate_model_suite.py` for model-suite perplexity and optional decompressed evaluation.
+- Bumped the package version to 0.7.0.
+
 ## 0.6.0
 
 - Added packed affine scalar quantization baselines across every integer bit width from 1 to 8 bits.

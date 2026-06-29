@@ -52,6 +52,8 @@ class HyperGlyphConfig:
     assignment_encoding: str = "auto"
     assignment_group_size: int = 1
     codec_error_multiplier: float = 1.05
+    auto_max_codebook_blocks: int = 4096
+    auto_max_svd_elements: int = 262144
 
     def __post_init__(self) -> None:
         if self.mode not in {"standard", "compact"}:
@@ -104,3 +106,7 @@ class HyperGlyphConfig:
             raise ValueError("assignment_group_size must be positive")
         if self.codec_error_multiplier <= 0:
             raise ValueError("codec_error_multiplier must be positive")
+        if self.auto_max_codebook_blocks <= 0:
+            raise ValueError("auto_max_codebook_blocks must be positive")
+        if self.auto_max_svd_elements <= 0:
+            raise ValueError("auto_max_svd_elements must be positive")

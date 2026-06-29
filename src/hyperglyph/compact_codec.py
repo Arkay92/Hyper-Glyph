@@ -113,7 +113,7 @@ class CompactHyperGlyphCodec:
         }
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.6.0",
+            "codec_version": "0.7.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,
@@ -175,7 +175,7 @@ class CompactHyperGlyphCodec:
         frozen_streams = {name: bytes(data) for name, data in streams.items()}
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.6.0",
+            "codec_version": "0.7.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,
@@ -221,7 +221,7 @@ class CompactHyperGlyphCodec:
             return CompactCompressedModel(
                 metadata={
                     "format_version": "0.5",
-                    "codec_version": "0.6.0",
+                    "codec_version": "0.7.0",
                     "mode": "compact",
                     "tensor_count": 0,
                     "skipped_tensors": skipped,
@@ -308,7 +308,7 @@ class CompactHyperGlyphCodec:
         }
         metadata = {
             "format_version": "0.5",
-            "codec_version": "0.6.0",
+            "codec_version": "0.7.0",
             "mode": "compact",
             "tensor_count": len(tensors),
             "skipped_tensors": skipped,
@@ -444,10 +444,12 @@ def _build_tensor_candidates(
 ) -> list[TensorCandidate]:
     candidates = [
         _candidate_packed_int4(name, array, config),
-        _candidate_block_codebook(name, array, config),
         _candidate_raw_quantized(name, array),
     ]
-    if array.ndim == 2 and min(array.shape) >= 2:
+    block_count = (array.size + config.block_size - 1) // config.block_size
+    if block_count <= config.auto_max_codebook_blocks:
+        candidates.append(_candidate_block_codebook(name, array, config))
+    if array.ndim == 2 and min(array.shape) >= 2 and array.size <= config.auto_max_svd_elements:
         candidates.extend(_candidate_low_rank(name, array, config))
     sparse = _candidate_sparse(name, array)
     if sparse is not None:

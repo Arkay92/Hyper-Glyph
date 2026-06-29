@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hyperglyph-codec"
-version = "0.6.0"
+version = "0.7.0"
 description = "Hyperdimensional symbolic residual compression for neural network weights"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,6 +45,7 @@ dev = [
   "pre-commit",
 ]
 torch = ["torch"]
+eval = ["torch", "transformers", "datasets"]
 docs = ["mkdocs", "mkdocs-material"]
 compression = ["zstandard"]
 

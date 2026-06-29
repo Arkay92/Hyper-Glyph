@@ -20,3 +20,7 @@ def test_inspect_command_exits_successfully(tmp_path) -> None:
 
     exit_code = main(["inspect", str(path)])
     assert exit_code == 0
+
+
+def test_quant_libs_command_exits_successfully() -> None:
+    assert main(["quant-libs"]) == 0

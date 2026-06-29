@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import asdict
 from typing import Sequence
 
 try:
@@ -14,6 +15,13 @@ except ImportError:  # pragma: no cover - optional dependency path
 from .benchmark import benchmark_state_dict
 from .codec import HyperGlyphCodec
 from .config import HyperGlyphConfig
+from .evaluation import (
+    available_strong_quantization_libraries,
+    evaluate_perplexity,
+    run_ablation_study,
+    tensor_error_analysis,
+    tensor_error_markdown,
+)
 from .serialization import load_compressed, save_compressed
 
 
@@ -60,6 +68,28 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument(
         "--scale-mode", choices=["block", "tensor", "channel"], default="block"
     )
+
+    analyze_parser = subparsers.add_parser("analyze")
+    analyze_parser.add_argument("original", help="Original torch state dict file (.pt)")
+    analyze_parser.add_argument("restored", help="Restored torch state dict file (.pt)")
+    analyze_parser.add_argument("--limit", type=int, default=25)
+    analyze_parser.add_argument("--markdown-output", help="Write tensor error report")
+
+    ablation_parser = subparsers.add_parser("ablation")
+    ablation_parser.add_argument("input", help="Input torch state dict file (.pt)")
+    ablation_parser.add_argument("--names", nargs="*", help="Subset of ablation row names")
+    ablation_parser.add_argument("--markdown-output", help="Write ablation report")
+
+    perplexity_parser = subparsers.add_parser("perplexity")
+    perplexity_parser.add_argument("--model", required=True)
+    perplexity_parser.add_argument("--dataset", default="wikitext")
+    perplexity_parser.add_argument("--dataset-config", default="wikitext-2-raw-v1")
+    perplexity_parser.add_argument("--split", default="test")
+    perplexity_parser.add_argument("--max-samples", type=int, default=64)
+    perplexity_parser.add_argument("--sequence-length", type=int, default=512)
+    perplexity_parser.add_argument("--decompressed", action="store_true")
+
+    subparsers.add_parser("quant-libs")
 
     return parser
 
@@ -139,6 +169,67 @@ def main(argv: Sequence[str] | None = None) -> int:
             with open(args.markdown_output, "w", encoding="utf-8") as handle:
                 handle.write(markdown)
         print(markdown)
+        return 0
+
+    if args.command == "analyze":
+        if torch is None:
+            raise SystemExit("PyTorch is required for analyze CLI commands")
+        original = torch.load(args.original, map_location="cpu")
+        restored = torch.load(args.restored, map_location="cpu")
+        rows = tensor_error_analysis(original, restored)
+        markdown = tensor_error_markdown(rows, limit=args.limit)
+        if args.markdown_output:
+            with open(args.markdown_output, "w", encoding="utf-8") as handle:
+                handle.write(markdown)
+        print(markdown)
+        return 0
+
+    if args.command == "ablation":
+        if torch is None:
+            raise SystemExit("PyTorch is required for ablation CLI commands")
+        state_dict = torch.load(args.input, map_location="cpu")
+        selected = set(args.names) if args.names else None
+        rows = run_ablation_study(state_dict, names=selected)
+        markdown_lines = [
+            "| Ablation | Bytes | Ratio vs FP32 | MSE | MAE | Max Abs Error | Tensors |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+        for row in rows:
+            markdown_lines.append(
+                f"| {row.name} | {row.compressed_bytes} | {row.ratio_vs_fp32:.2f}x | "
+                f"{row.mse:.8g} | {row.mae:.8g} | {row.max_abs_error:.8g} | "
+                f"{row.tensors_compressed} |"
+            )
+        markdown = "\n".join(markdown_lines) + "\n"
+        if args.markdown_output:
+            with open(args.markdown_output, "w", encoding="utf-8") as handle:
+                handle.write(markdown)
+        print(markdown)
+        return 0
+
+    if args.command == "perplexity":
+        config = None
+        if args.decompressed:
+            config = HyperGlyphConfig(mode="compact", compact_tensor_codec="auto")
+        result = evaluate_perplexity(
+            model_name=args.model,
+            dataset_name=args.dataset,
+            dataset_config=args.dataset_config,
+            split=args.split,
+            max_samples=args.max_samples,
+            sequence_length=args.sequence_length,
+            compression_config=config,
+        )
+        print(json.dumps(asdict(result), indent=2))
+        return 0
+
+    if args.command == "quant-libs":
+        print(
+            json.dumps(
+                [asdict(status) for status in available_strong_quantization_libraries()],
+                indent=2,
+            )
+        )
         return 0
 
     parser.error("unknown command")

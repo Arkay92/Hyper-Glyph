@@ -34,6 +34,10 @@
 - **`.hwz` serialization** for saving compressed models as portable archives.
 - **Compression reports** with size ratio, tensor counts, and reconstruction error metrics.
 - **Markdown benchmark export** with FP32, FP16, INT1 through INT8, and Hyper Glyph comparisons.
+- **Optional perplexity evaluation** on WikiText-2 or C4-style subsets when `torch`,
+  `transformers`, and `datasets` are installed.
+- **Layer-wise error and ablation helpers** for residuals, codebook size, block size,
+  scale modes, and decompressed inference comparisons.
 - **A small CLI** for compressing, decompressing, inspecting, and benchmarking model archives.
 - **Typed Python API** designed for research, experimentation, and extension.
 
@@ -90,7 +94,8 @@ than guaranteed production compression.
 Hyper Glyph v0.3.0 adds **compact mode**, a byte-packed archive path focused on
 actual stored bytes rather than theoretical payload estimates. Hyper Glyph
 v0.6.0 extends the benchmark harness across scalar quantization bit widths from
-1 through 8 bits.
+1 through 8 bits. Hyper Glyph v0.7.0 adds optional open-model evaluation hooks
+for perplexity, tensor-wise error analysis, ablations, and decompressed inference.
 
 Sample v0.2.0 benchmark from `examples/artifacts/sample-v0.2-benchmark.md`:
 
@@ -197,6 +202,41 @@ against them: learned block codebooks, sparse residual repair, low-rank plus
 residual candidates, grouped assignments, run-length and delta-varint streams,
 optional zstd archive compression, and benchmark rows across every scalar bit
 width from INT1 through INT8.
+
+### Evaluation Suite
+
+v0.7.0 adds evaluation helpers for the heavier checks that should run outside
+normal CI:
+
+- **Perplexity:** `evaluate_perplexity(...)` can evaluate FP32 and optionally
+  decompressed weights on WikiText-2 by default, or on a C4 subset when you pass
+  the dataset name/config. This requires `torch`, `transformers`, and `datasets`.
+- **Open models:** the default model suite includes DistilGPT2,
+  `EleutherAI/gpt-neo-125m`, `facebook/opt-125m`, `EleutherAI/pythia-70m`, and
+  `TinyLlama/TinyLlama-1.1B-Chat-v1.0`.
+- **Stronger quantization libraries:** `available_strong_quantization_libraries()`
+  detects optional GPTQ, AWQ, SmoothQuant, bitsandbytes, TorchAO, and Optimum
+  Quanto installs so reports can distinguish plain affine baselines from
+  advanced quantization baselines.
+- **Layer-wise analysis:** `tensor_error_analysis(original, restored)` reports
+  per-tensor MSE, MAE, max error, cosine, and FP32 bytes.
+- **Ablations:** `run_ablation_study(...)` compares residuals on/off, codebook
+  size, block size, and scale modes.
+- **Inference after decompression:** `compare_inference_after_decompression(...)`
+  compares logits from the original model and a copy loaded with restored weights.
+
+Run the optional model-suite example:
+
+```bash
+python examples/evaluate_model_suite.py --max-samples 16
+python examples/evaluate_model_suite.py --dataset c4 --dataset-config en --decompressed
+```
+
+These evaluations can be slow and may download model/data artifacts. Archive size
+and reconstruction quality are expected to vary by architecture and tensor type.
+Plain affine INT1-INT8 remains the built-in scalar baseline; GPTQ/AWQ/SmoothQuant
+comparisons are detected and should be run through their respective libraries
+when installed.
 
 ---
 
@@ -675,7 +715,8 @@ src/hyperglyph/
   metrics.py              # Size and reconstruction metrics
   packing.py              # uint4/int4/varint/delta packing helpers
   prototypes.py           # Prototype learning and assignment
-  quantization.py         # int8/int4 quantization helpers
+  evaluation.py           # Perplexity, ablation, tensor-error, and inference helpers
+  quantization.py         # int1-int8 affine quantization helpers
   residual.py             # Sparse residual encoding and repair
   residual_budget.py      # Adaptive residual budget helpers
   serialization.py        # .hwz save/load helpers
@@ -694,6 +735,7 @@ examples/
   compress_state_dict.py  # NumPy state dict compression example
   mnist_demo.py           # MNIST-oriented demo
   benchmark_hyperglyph_vs_quant.py # FP32/FP16/INT1-INT8/Hyper Glyph benchmark
+  evaluate_model_suite.py          # Optional open-model perplexity evaluation
   artifacts/
     sample-v0.2.hwz       # Example compressed archive
     sample-v0.2-benchmark.md # Markdown benchmark report
@@ -750,6 +792,6 @@ If you use Hyper Glyph in research, please cite:
   title={Hyper Glyph: Hyperdimensional Symbolic Residual Compression for Neural Network Weights},
   author={Robert McMenemy},
   year={2026},
-  version={0.6.0},
+  version={0.7.0},
 }
 ```
